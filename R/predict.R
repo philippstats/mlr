@@ -87,6 +87,7 @@ predict.WrappedModel = function(object, task, newdata, subset, ...) {
     truth = NULL
   }
 
+  error = NA_character_
   # was there an error in building the model? --> return NAs
   if (isFailureModel(model)) {
     p = predictFailureModel(model, newdata)
@@ -116,6 +117,7 @@ predict.WrappedModel = function(object, task, newdata, subset, ...) {
     if (is.error(p)) {
       if (opts$on.learner.warning == "warn")
         warningf("Could not predict with learner %s: %s", learner$id, as.character(p))
+      error = as.character(p)
       p = predictFailureModel(model, newdata)
       time.predict = NA_real_
     }
@@ -125,5 +127,5 @@ predict.WrappedModel = function(object, task, newdata, subset, ...) {
   else
     ids = subset
   makePrediction(task.desc = td, row.names = rownames(newdata), id = ids, truth = truth,
-    predict.type = learner$predict.type, predict.threshold = learner$predict.threshold, y = p, time = time.predict)
+    predict.type = learner$predict.type, predict.threshold = learner$predict.threshold, y = p, time = time.predict, error = error)
 }
