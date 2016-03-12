@@ -19,16 +19,19 @@ addons:
   packages:
     - gcc-4.8
     - g++-4.8
-    - oracle-java8-installer
+    - libgmp-dev
 
 r_github_packages:
   - berndbischl/BBmisc
   - berndbischl/parallelMap
   - berndbischl/ParamHelpers
-  - hadley/svglite
 
 before_install:
   - Rscript -e 'install.packages("nlme")'
+
+before_script:
+  - java -cp $HOME/R/Library/RWekajars/java/weka.jar weka.core.WekaPackageManager -install-package thirdparty/XMeans1.0.4.zip
+
 
 notifications:
   email:
