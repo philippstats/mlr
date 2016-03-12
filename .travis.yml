@@ -32,6 +32,9 @@ before_install:
 before_script:
   - java -cp $HOME/R/Library/RWekajars/java/weka.jar weka.core.WekaPackageManager -install-package thirdparty/XMeans1.0.4.zip
 
+script:
+  - echo "empty"
+
 
 notifications:
   email:
