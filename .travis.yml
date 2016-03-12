@@ -1,6 +1,15 @@
 language: r
 sudo: false
 
+addons:
+ apt:
+   sources:
+   - ubuntu-toolchain-r-test
+   packages:
+   - gcc-4.9
+   - g++-4.9
+   - libgmp-dev
+
 cache:
   packages: true
   directories:
@@ -12,29 +21,16 @@ env:
     - _R_CHECK_FORCE_SUGGESTS_=0
     - secure: "WFbdUIQRi7VYUHceKrg9xnw7m+8SK658rmgWPW++zWq5J4n0ZLuTRdKHu7ijyK9zOzNGjLF+NzvnwPS+yMPJwTX/s82hrC5GAMrYs3shEvR95PwFx42nfjqU5fsKsZ9gYpqIuZoJs32yPOJ/9XBLHU8rUv5+x4Z1zM2hBJHAn74="
 
-addons:
-  apt:
-    sources:
-      - ubuntu-toolchain-r-test
-  packages:
-    - gcc-4.8
-    - g++-4.8
-    - libgmp-dev
-
 r_github_packages:
   - berndbischl/BBmisc
   - berndbischl/parallelMap
   - berndbischl/ParamHelpers
 
 before_install:
-  - Rscript -e 'install.packages("nlme")'
+  - Rscript -e 'install.packages(c("nlme", "mgcv"))'
 
 before_script:
   - java -cp $HOME/R/Library/RWekajars/java/weka.jar weka.core.WekaPackageManager -install-package thirdparty/XMeans1.0.4.zip
-
-script:
-  - echo "empty"
-
 
 notifications:
   email:
