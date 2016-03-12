@@ -26,8 +26,8 @@ r_github_packages:
   - berndbischl/parallelMap
   - berndbischl/ParamHelpers
 
-# before_install:
-  # - mkdir $HOME/.R && echo "CC=gcc-4.9" >> $HOME/.R/Makevars && echo "CXX=g++-4.9" >> $HOME/.R/Makevars
+before_install:
+  - mkdir $HOME/.R && echo "CC=gcc-4.9" >> $HOME/.R/Makeconf && echo "CXX=g++-4.9" >> $HOME/.R/Makeconf
 
 before_script:
   - java -cp $HOME/R/Library/RWekajars/java/weka.jar weka.core.WekaPackageManager -install-package thirdparty/XMeans1.0.4.zip
