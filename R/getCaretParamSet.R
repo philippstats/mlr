@@ -31,6 +31,7 @@
 #' }
 #' @export
 #' @examples
+#' \dontrun{
 #' library(caret)
 #' classifTask = makeClassifTask(data = iris, target = "Species")
 #'
@@ -42,6 +43,7 @@
 #' data(BostonHousing)
 #' regrTask = makeRegrTask(data = BostonHousing, target = "medv")
 #' getCaretParamSet("gbm", length = 9L, task = regrTask, discretize = FALSE)
+#' }
 getCaretParamSet = function(learner, length = 3L, task, discretize = TRUE){
   td = getTaskData(task, target.extra = TRUE)
   caret.grid = caret::getModelInfo(learner)[[learner]]$grid(

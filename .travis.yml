@@ -27,7 +27,7 @@ r_github_packages:
   - berndbischl/ParamHelpers
 
 before_install:
-  - Rscript -e 'install.packages(c("nlme", "mgcv"))'
+  - mkdir $HOME/.R && echo "CC=gcc-4.9\nCXX=g++-4.9" >> $HOME/.R/Makevars
 
 before_script:
   - java -cp $HOME/R/Library/RWekajars/java/weka.jar weka.core.WekaPackageManager -install-package thirdparty/XMeans1.0.4.zip

@@ -43,6 +43,7 @@ either be specified by their lower and upper bounds or they will be
 discretized into specific values.
 }
 \examples{
+\dontrun{
 library(caret)
 classifTask = makeClassifTask(data = iris, target = "Species")
 
@@ -54,5 +55,6 @@ library(mlbench)
 data(BostonHousing)
 regrTask = makeRegrTask(data = BostonHousing, target = "medv")
 getCaretParamSet("gbm", length = 9L, task = regrTask, discretize = FALSE)
+}
 }
 
