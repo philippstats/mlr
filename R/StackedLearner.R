@@ -453,7 +453,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 5, bagpro
   rin = makeResampleInstance(learner$resampling, task = task)
   for (i in seq_along(bls)) {
     bl = bls[[i]]
-    resres[[1]] = r = resample(bl, task, rin, show.info = FALSE) #new
+    resres[[i]] = r = resample(bl, task, rin, show.info = FALSE) #new
     if (type == "regr") {
       probs[[i]] = matrix(getResponse(r$pred), ncol = 1)
     } else {
