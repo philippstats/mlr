@@ -421,7 +421,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 5, bagpro
   metric = NULL, ...) {
 
   assertFlag(replace)
-  assertInt(init, lower = 0, upper = length(learner$base.learners))
+  assertInt(init, lower = 0, upper = length(learner$base.learners)) #807
   assertNumber(bagprob, lower = 0, upper = 1)
   assertInt(bagtime, lower = 1)
 
@@ -449,7 +449,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 5, bagpro
     }
   }
   # cross-validate all base learners and get a prob vector for the whole dataset for each learner
-  base.models = probs = vector("list", length(bls))
+  base.models = resres = probs = vector("list", length(bls)) #new
   rin = makeResampleInstance(learner$resampling, task = task)
   for (i in seq_along(bls)) {
     bl = bls[[i]]
@@ -464,6 +464,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 5, bagpro
     base.models[[i]] = train(bl, task)
   }
   names(probs) = names(bls)
+names(resres) = names(bls) #new
 
   # add true target column IN CORRECT ORDER
   tn = getTaskTargetNames(task)
@@ -481,17 +482,18 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 5, bagpro
     # bagging of models
     bagsize = ceiling(m*bagprob)
     bagmodel = sample(1:m, bagsize)
-    bagweight = rep(0, m)
+    bagweight = rep(0, m) #807
 
     # Initial selection of strongest learners
     inds = NULL
     if (init>0) {
       score = rep(Inf, m)
       for (i in bagmodel) {
-        score[i] = metric(probs[[i]], probs[[tn]])
+        #score[i] = metric(probs[[i]], probs[[tn]]) #new
+        score[i] = metric(task, base.models[[i]], resres[[i]]$pred) #new
       }
       inds = order(score)[1:init]
-      bagweight[inds] = 1
+      bagweight[inds] = 1 #807
     }
 
     selection.size = init
@@ -502,13 +504,16 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 5, bagpro
     if (selection.size>0) {
       current.prob = Reduce('+', probs[selection.ind])
       old.score = metric(current.prob/selection.size, probs[[tn]])
+      stop("metrics need to be implemented") #new
     }
     flag = TRUE
 
     while (flag) {
       score = rep(Inf, bagsize)
       for (i in bagmodel) {
-        score[i] = metric( (probs[[i]]+current.prob)/(selection.size+1), probs[[tn]] )
+        #score[i] = metric( (probs[[i]]+current.prob)/(selection.size+1), probs[[tn]] ) #new
+        score[i] = metric(task, base.models[[i]], resres[[i]]$pred) #new
+
       }
       inds = order(score)
       if (!replace) {
@@ -528,7 +533,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 5, bagpro
         old.score = new.score
       }
     }
-    weights = weights + bagweight
+    weights = weights + bagweight #807
   }
   weights = weights/sum(weights)
 
