@@ -48,7 +48,7 @@ Not used for \code{method = 'average'}.
 Default is \code{FALSE}.}
 
 \item{resampling}{[\code{\link{ResampleDesc}}]\cr
-Resampling strategy for \code{method = 'stack.cv'}.
+Resampling strategy for \code{method = 'stack.cv'} and \code{method = 'hill.climb'}.
 Currently only CV is allowed for resampling.
 The default \code{NULL} uses 5-fold CV.}
 
@@ -89,8 +89,7 @@ The following stacking methods are available:
   base = c("classif.rpart", "classif.lda", "classif.svm")
   lrns = lapply(base, makeLearner)
   lrns = lapply(lrns, setPredictType, "prob")
-  m = makeStackedLearner(base.learners = lrns,
-    predict.type = "prob", method = "hill.climb")
+  m = makeStackedLearner(base.learners = lrns, predict.type = "prob", method = "hill.climb", parset = list(init = 0, metric = mmce))
   tmp = train(m, tsk)
   res = predict(tmp, tsk)
 
@@ -99,8 +98,7 @@ The following stacking methods are available:
   tsk = makeRegrTask(data = BostonHousing, target = "medv")
   base = c("regr.rpart", "regr.svm")
   lrns = lapply(base, makeLearner)
-  m = makeStackedLearner(base.learners = lrns,
-    predict.type = "response", method = "compress")
+  m = makeStackedLearner(base.learners = lrns, predict.type = "response", method = "compress", parset = list(init = 0, metric = mmce))
   tmp = train(m, tsk)
   res = predict(tmp, tsk)
 }

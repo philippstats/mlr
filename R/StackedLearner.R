@@ -509,8 +509,11 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 5, bagpro
     while (flag) {
       score = rep(Inf, bagsize)
       for (i in bagmodel) {
-        #score[i] = metric( (probs[[i]]+current.prob)/(selection.size+1), probs[[tn]] ) #new
-        score[i] = metric(task, model = base.models[[i]], pred = resres[[i]]$pred) #new
+        if (class(metric) == "function") { #new
+          score[i] = metric( (probs[[i]]+current.prob)/(selection.size+1), probs[[tn]] ) #new
+        } else {# new
+          score[i] = metric(task, model = base.models[[i]], pred = resres[[i]]$pred) #new
+        }
       }
       inds = order(score)
       if (!replace) {
