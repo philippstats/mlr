@@ -439,6 +439,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 5, bagpro
       }
     }
   }
+  metric = metric$fun
   assertFunction(metric)
 
   bls = learner$base.learners
