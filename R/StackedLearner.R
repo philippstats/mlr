@@ -127,8 +127,8 @@ makeStackedLearner = function(base.learners, super.learner = NULL, predict.type 
   #  stop("Predict type has to be specified within the super learner.")
   if ((method == "average" | method == "hill.climb") & use.feat)
     stop("The original features can not be used for this method")
-  if (!inherits(resampling, "CVDesc"))
-    stop("Currently only CV is allowed for resampling!")
+  #if (!inherits(resampling, "CVDesc")) # new 
+  #  stop("Currently only CV is allowed for resampling!") # new
 
   # lrn$predict.type is "response" by default change it using setPredictType
   lrn =  makeBaseEnsemble(
