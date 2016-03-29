@@ -127,9 +127,6 @@ makeStackedLearner = function(base.learners, super.learner = NULL, predict.type 
     stop("The original features can not be used for this method")
   #if (!inherits(resampling, "CVDesc")) # new 
   #  stop("Currently only CV is allowed for resampling!") # new
-  if (init > 0 & class(metric) != "NULL") 
-    stop("'metric' only implemented for init = 0. Set 'metric = NULL' or 'init = 0'")
-  
 
   # lrn$predict.type is "response" by default change it using setPredictType
   lrn =  makeBaseEnsemble(
@@ -425,6 +422,9 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 5, bagpro
   assertInt(init, lower = 0, upper = length(learner$base.learners)) #807
   assertNumber(bagprob, lower = 0, upper = 1)
   assertInt(bagtime, lower = 1)
+  if (init > 0 & class(metric) != "NULL")
+    stop("'metric' only implemented for init = 0. Set 'metric = NULL' or 'init = 0'")
+
 
   td = getTaskDescription(task)
   type = ifelse(td$type == "regr", "regr",
