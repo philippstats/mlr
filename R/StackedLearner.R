@@ -127,6 +127,9 @@ makeStackedLearner = function(base.learners, super.learner = NULL, predict.type 
     stop("The original features can not be used for this method")
   #if (!inherits(resampling, "CVDesc")) # new 
   #  stop("Currently only CV is allowed for resampling!") # new
+  if (init > 0 & class(metric) != "NULL") 
+    stop("'metric' only implemented for init = 0. Set 'metric = NULL' or 'init = 0'")
+  
 
   # lrn$predict.type is "response" by default change it using setPredictType
   lrn =  makeBaseEnsemble(
@@ -436,9 +439,9 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 5, bagpro
         return( 1- sum(diag(tb))/sum(tb) )
       }
     }
-  } else {
-    assertClass(metric, "Measure")
-    metric = metric$fun # new
+  #} else {
+  #  assertClass(metric, "Measure")
+  #  metric = metric$fun # new
   }
 
   bls = learner$base.learners
@@ -512,7 +515,8 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 5, bagpro
         if (class(metric) == "function") { #new
           score[i] = metric( (probs[[i]]+current.prob)/(selection.size+1), probs[[tn]] ) #new
         } else {# new
-          score[i] = metric(task, model = base.models[[i]], pred = resres[[i]]$pred) #new
+          assertClass(metric, "Measure")
+          score[i] = metric$fun(task, model = base.models[[i]], pred = resres[[i]]$pred) #new
         }
       }
       inds = order(score)
