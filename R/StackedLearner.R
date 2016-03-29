@@ -453,7 +453,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 5, bagpro
   rin = makeResampleInstance(learner$resampling, task = task)
   for (i in seq_along(bls)) {
     bl = bls[[i]]
-    r = resample(bl, task, rin, show.info = FALSE)
+    resres[[1]] = r = resample(bl, task, rin, show.info = FALSE) #new
     if (type == "regr") {
       probs[[i]] = matrix(getResponse(r$pred), ncol = 1)
     } else {
@@ -464,7 +464,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 5, bagpro
     base.models[[i]] = train(bl, task)
   }
   names(probs) = names(bls)
-names(resres) = names(bls) #new
+  names(resres) = names(bls) #new
 
   # add true target column IN CORRECT ORDER
   tn = getTaskTargetNames(task)
