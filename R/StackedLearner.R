@@ -103,7 +103,7 @@ makeStackedLearner = function(base.learners, super.learner = NULL, predict.type 
   baseType = unique(extractSubList(base.learners, "type"))
   assertChoice(method, c("average", "stack.nocv", "stack.cv", "hill.climb", "compress"))
 
-  if (method %in% c("stack.cv", "hill.climb")) {
+  if (method %in% c("stack.cv", "hill.climb", "compress")) {
     if (is.null(resampling)) {
       resampling = makeResampleDesc("CV", iters = 5L, stratify = ifelse(baseType == "classif", TRUE, FALSE))
     } else {
