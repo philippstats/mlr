@@ -438,9 +438,10 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 5, bagpro
         return( 1- sum(diag(tb))/sum(tb) )
       }
     }
+  } else {
+    assertClass(metric, "Measure")
+    metric = metric$fun # new
   }
-  metric = metric$fun
-  assertFunction(metric)
 
   bls = learner$base.learners
   if (type != "regr") {
