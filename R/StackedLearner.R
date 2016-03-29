@@ -73,8 +73,7 @@
 #'   base = c("classif.rpart", "classif.lda", "classif.svm")
 #'   lrns = lapply(base, makeLearner)
 #'   lrns = lapply(lrns, setPredictType, "prob")
-#'   m = makeStackedLearner(base.learners = lrns,
-#'     predict.type = "prob", method = "hill.climb")
+#'   m = makeStackedLearner(base.learners = lrns, predict.type = "prob", method = "hill.climb", parset = list(init = 0, metric = mmce))
 #'   tmp = train(m, tsk)
 #'   res = predict(tmp, tsk)
 #'
@@ -83,8 +82,7 @@
 #'   tsk = makeRegrTask(data = BostonHousing, target = "medv")
 #'   base = c("regr.rpart", "regr.svm")
 #'   lrns = lapply(base, makeLearner)
-#'   m = makeStackedLearner(base.learners = lrns,
-#'     predict.type = "response", method = "compress")
+#'   m = makeStackedLearner(base.learners = lrns, predict.type = "response", method = "compress", parset = list(init = 0, metric = mmce))
 #'   tmp = train(m, tsk)
 #'   res = predict(tmp, tsk)
 #' @export
