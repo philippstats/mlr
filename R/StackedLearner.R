@@ -492,7 +492,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 5, bagpro
     if (init>0) {
       score = rep(Inf, m)
       for (i in bagmodel) {
-        score[i] = metric(probs[[i]], probs[[tn]])
+        score[i] = metric(probs[[i]], probs[[tn]]) #todo-metric
       }
       inds = order(score)[1:init]
       bagweight[inds] = 1 #807
@@ -505,7 +505,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 5, bagpro
     old.score = Inf
     if (selection.size>0) {
       current.prob = Reduce('+', probs[selection.ind])
-      old.score = metric(current.prob/selection.size, probs[[tn]])
+      old.score = metric(current.prob/selection.size, probs[[tn]]) #todo-metric
     }
     flag = TRUE
 
@@ -514,7 +514,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 5, bagpro
       for (i in bagmodel) {
         if (class(metric) == "function") { #new
           score[i] = metric( (probs[[i]]+current.prob)/(selection.size+1), probs[[tn]] ) #new
-        } else {# new
+        } else { # new
           assertClass(metric, "Measure")
           score[i] = metric$fun(task, model = base.models[[i]], pred = resres[[i]]$pred) #new
         }
