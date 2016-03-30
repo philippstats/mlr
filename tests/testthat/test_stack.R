@@ -90,6 +90,8 @@ test_that("Parameters for hill climb works", {
 
   expect_equal(sum(tmp$learner.model$weights), 1)
 
+  ### insert checks for metric of class Measure
+
 })
 
 test_that("Parameters for compress model", {
