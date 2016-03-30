@@ -317,6 +317,10 @@ averageBaseLearners = function(learner, task) {
   for (i in seq_along(bls)) {
     bl = bls[[i]]
     model = train(bl, task)
+    # new
+    print(bl$id)
+    print(gc())
+    # new/
     base.models[[i]] = model
     #
     pred = predict(model, task = task)
@@ -468,6 +472,10 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
     }
     # also fit all base models again on the complete original data set
     base.models[[i]] = train(bl, task)
+        # new
+    print(bl$id)
+    print(gc())
+    # new/
   }
   names(probs) = names(bls)
   names(resres) = names(bls) #new
