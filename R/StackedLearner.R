@@ -425,7 +425,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
   assertInt(init, lower = 0, upper = length(learner$base.learners)) #807
   assertNumber(bagprob, lower = 0, upper = 1)
   assertInt(bagtime, lower = 1)
-  if (init > 0 & class(metric) != "NULL")
+  if (init > 0 & class(metric) == "Measure")
     stop("'metric' only implemented for init = 0. Set 'metric = NULL' or 'init = 0'")
 
 
@@ -492,11 +492,15 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
 
     # Initial selection of strongest learners
     inds = NULL
-    if (init>0) {
+    if (init > 0) {
       score = rep(Inf, m)
       for (i in bagmodel) {
-        #score[i] = metric(probs[[i]], probs[[tn]])
-        score[i] = metric(task, base.models[[i]], resres[[i]]$pred)
+        if (class(metric) != "Measure") {
+          score[i] = metric(probs[[i]], probs[[tn]])
+        } else {
+          assertClass(metric, "Measure")
+          score[i] = metric$fun(task, model = base.models[[i]], pred = resres[[i]]$pred) #new
+        }
       }
       inds = order(score)[1:init]
       bagweight[inds] = 1 #807
