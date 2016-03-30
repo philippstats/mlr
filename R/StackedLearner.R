@@ -418,7 +418,7 @@ stackCV = function(learner, task) {
        super.model = super.model, pred.train = pred.train)
 }
 
-hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 5, bagprob = 0.5, bagtime = 20,
+hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagprob = 1, bagtime = 1,
   metric = NULL, ...) {
 
   assertFlag(replace)
