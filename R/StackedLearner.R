@@ -168,12 +168,15 @@ makeStackedLearner = function(base.learners, super.learner = NULL, predict.type 
 #' @export
 getStackedBaseLearnerPredictions = function(model, newdata = NULL) {
   # get base learner and predict type
-  bms = model$learner.model$base.models
-  method = model$learner.model$method
+  #bms = model$learner.model$base.models
+  #method = model$learner.model$method
 
   if (is.null(newdata)) {
     probs = model$learner.model$pred.train
   } else {
+    # get base learner and predict type
+    bms = model$learner.model$base.models
+    method = model$learner.model$method
     # if (model == "stack.cv") warning("Crossvalidated predictions for new data is not possible for this method.")
     # predict prob vectors with each base model
     probs = vector("list", length(bms))
@@ -356,10 +359,10 @@ stackNoCV = function(learner, task) {
     feat = getTaskData(task)
     feat = feat[, colnames(feat) %nin% td$target, drop = FALSE]
     probs = cbind(probs, feat)
-    super.task = makeSuperLearnerTask(learner, data = probs,
+    super.task = makeSuperLearnerTask(learner$super.learner$type, data = probs,
       target = td$target)
   } else {
-    super.task = makeSuperLearnerTask(learner, data = probs, target = td$target)
+    super.task = makeSuperLearnerTask(learner$super.learner$type, data = probs, target = td$target)
   }
   super.model = train(learner$super.learner, super.task)
   list(method = "stack.no.cv", base.models = base.models,
@@ -406,9 +409,9 @@ stackCV = function(learner, task) {
     feat = getTaskData(task)#[test.inds, ]
     feat = feat[, !colnames(feat)%in%tn, drop = FALSE]
     predData = cbind(probs, feat)
-    super.task = makeSuperLearnerTask(learner, data = predData, target = tn)
+    super.task = makeSuperLearnerTask(learner$super.learner$type, data = predData, target = tn)
   } else {
-    super.task = makeSuperLearnerTask(learner, data = probs, target = tn)
+    super.task = makeSuperLearnerTask(learner$super.learner$type, data = probs, target = tn)
   }
   super.model = train(learner$super.learner, super.task)
   list(method = "stack.cv", base.models = base.models,
@@ -458,7 +461,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 5, bagpro
     bl = bls[[i]]
     resres[[i]] = r = resample(bl, task, rin, show.info = FALSE) #new
     if (type == "regr") {
-      probs[[i]] = matrix(getResponse(r$pred), ncol = 1)
+      probs[[i]] = matrix(getResponse(r$pred, full.matrix = TRUE), ncol = 1)
     } else {
       probs[[i]] = getResponse(r$pred, full.matrix = TRUE)
       colnames(probs[[i]]) = task$task.desc$class.levels
@@ -492,7 +495,8 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 5, bagpro
     if (init>0) {
       score = rep(Inf, m)
       for (i in bagmodel) {
-        score[i] = metric(probs[[i]], probs[[tn]]) #todo-metric
+        #score[i] = metric(probs[[i]], probs[[tn]])
+        score[i] = metric(task, base.models[[i]], resres[[i]]$pred)
       }
       inds = order(score)[1:init]
       bagweight[inds] = 1 #807
@@ -586,7 +590,9 @@ compressBaseLearners = function(learner, task, parset = list()) {
 ### other helpers ###
 
 # Returns response for correct usage in stackNoCV and stackCV and for predictions
-getResponse = function(pred, full.matrix = TRUE) {
+# also used in average and hill.climb
+# full.matrix only used for predict.type = "prob": only returns positive prob if FALSE, all probs otherwise
+getResponse = function(pred, full.matrix = NULL) {
   # if classification with probabilities
   if (pred$predict.type == "prob") {
     if (full.matrix) {
@@ -606,11 +612,13 @@ getResponse = function(pred, full.matrix = TRUE) {
 }
 
 # Create a super learner task
-makeSuperLearnerTask = function(learner, data, target) {
-  if (learner$super.learner$type == "classif") {
-    makeClassifTask(data = data, target = target)
+makeSuperLearnerTask = function(type, data, target) {
+  data = data[, colnames(unique(as.matrix(data), MARGIN = 2))] # may not be useful for small data sets with predict.type=response
+  if (type == "classif") {
+    removeConstantFeatures(task = makeClassifTask(data = data, target = target))
   } else {
-    makeRegrTask(data = data, target = target)
+    removeConstantFeatures(task = makeRegrTask(data = data, target = target))
+
   }
 }
 
