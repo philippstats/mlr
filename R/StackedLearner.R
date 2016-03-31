@@ -317,15 +317,14 @@ averageBaseLearners = function(learner, task) {
   for (i in seq_along(bls)) {
     bl = bls[[i]]
     model = train(bl, task)
-    # new
-    print(bl$id)
-    print(gc())
-    # new/
+    message(bl$id)
     base.models[[i]] = model
-    #
     pred = predict(model, task = task)
     probs[[i]] = getResponse(pred, full.matrix = TRUE)
+    #message(paste0("loop>", round(mem_used()/1024/1024, 2), "-MB"))
   }
+  message(paste0(round(mem_used()/1024/1024, 2), "-MB"))
+
   names(probs) = names(bls)
   list(method = "average", base.models = base.models, super.model = NULL,
        pred.train = probs)
