@@ -307,7 +307,6 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
 
     pred = predict(sm, newdata = predData)
     if (sm.pt == "prob") {
-     # browser()
       return(as.matrix(getPredictionProbabilities(pred, cl = td$class.levels)))
     } else {
       return(pred$data$response)
@@ -317,10 +316,16 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
     for (i in seq_len(niter)) {
       newest.pred = predict(.model$learner.model$base.models[[i]], newdata = new.data)
       #FIXME for pred with response (or forbid it!?)
-      new.feat = getPredictionProbabilities(newest.pred, cl = td$class.levels)
-      new.data = makeDataWithNewFeat(data = new.data, 
-        new.col = new.feat[, -NCOL(new.feat), drop = FALSE],
-        feat.name = paste0("feat.", i))
+      if (bms.pt == "prob") {
+        new.feat = getPredictionProbabilities(newest.pred, cl = td$class.levels)
+        new.data = makeDataWithNewFeat(data = new.data, 
+          new.col = new.feat[, -NCOL(new.feat), drop = FALSE],
+          feat.name = paste0("feat.", i))
+      } else {
+        new.feat = newest.pred$data$response
+        new.data = makeDataWithNewFeat(data = new.data, 
+          new.col = new.feat, feat.name = paste0("feat.", i))
+      }
     }
     return(as.matrix(getPredictionProbabilities(newest.pred, cl = td$class.levels)))
     #FIXME multiclass - should work now: check it!
