@@ -644,14 +644,28 @@ boostStack = function(learner, task) {
   class(learner) = c("ModelMultiplexer", "StackedLearner", "BaseEnsemble", "Learner")
 
   for (i in seq_len(learner$parset$niter)) {
+  #FIXME: try to use tuneParams.ModelMultiplexer althoug it's not MM
     res = tuneParams(learner = learner, task = new.task, 
       resampling = learner$resampling, par.set = learner$parset$mm.ps, 
       control = learner$parset$control)
     best.lrn[[i]] = makeLearnerFromTuneResult(res)
     base.models[[i]] = train(best.lrn[[i]], new.task)
     predictions[[i]] = predict(base.models[[i]], new.task)
-    new.task = makeTaskWithNewFeat(new.task, pred = predictions[[i]], 
-        predict.type = learner$predict.type, feat.name = paste0("feat.", i))
+    ##
+    if (learner$bms.pt == "prob") {
+        new.feat = getPredictionProbabilities(predictions[[i]], cl = td$class.levels)
+        new.data = makeDataWithNewFeat(data = new.data, 
+          new.col = new.feat[, -NCOL(new.feat), drop = FALSE],
+          feat.name = paste0("feat.", i))
+      } else {
+        new.feat = predictions[[i]]$data$response
+        new.data = makeDataWithNewFeat(data = new.data, 
+          new.col = new.feat, feat.name = paste0("feat.", i))
+      }
+    }
+    ##
+    #new.task = makeTaskWithNewFeat(new.task, pred = predictions[[i]], 
+    #    predict.type = learner$predict.type, feat.name = paste0("feat.", i))
     # FIXME: update par.set (for randomForest.mtry)
     # FIXME: report performance or something
     #message(paste(niter, ":", performace(predictions[[i]], measure = measure)))
