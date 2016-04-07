@@ -612,6 +612,33 @@ compressBaseLearners = function(learner, task, parset = list()) {
        pred.train = pseudo.data)
 }
 
+
+stackBoost = function(learner, task) {
+  new.task = task
+  #FIXME: (Later) Only save the last prediction
+  best.lrn = base.models = predictions = vector("list", length = learner$parset$niter)
+  # FIXME: arrange classes. tuneParams needs "ModelMultiplexer" 
+  class(learner) = c("ModelMultiplexer", "StackedLearner", "BaseEnsemble", "Learner")
+
+  for (i in seq_len(learner$parset$niter)) {
+    res = tuneParams(learner = learner, task = new.task, 
+      resampling = learner$resampling, par.set = learner$parset$mm.ps, 
+      control = learner$parset$control)
+    best.lrn[[i]] = makeLearnerFromTuneResult(res)
+    base.models[[i]] = train(best.lrn[[i]], new.task)
+    predictions[[i]] = predict(base.models[[i]], new.task)
+    new.task = makeTaskWithNewFeat(new.task, pred = predictions[[i]], 
+        predict.type = learner$predict.type, feat.name = paste0("feat.", i))
+    # FIXME: update par.set (for randomForest.mtry)
+    # FIXME: report performance or something
+    #message(paste(niter, ":", performace(predictions[[i]], measure = measure)))
+  }
+  list(method = "boostStack", base.models = base.models, super.model = NULL,
+       pred.train = predictions[[learner$parset$niter]])
+  
+}
+
+
 ### other helpers ###
 
 # Returns response for correct usage in stackNoCV and stackCV and for predictions
