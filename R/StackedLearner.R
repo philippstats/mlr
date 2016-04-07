@@ -213,7 +213,8 @@ trainLearner.StackedLearner = function(.learner, .task, .subset, ...) {
     stack.cv = stackCV(.learner, .task),
     # hill.climb = hillclimbBaseLearners(.learner, .task, ...)
     hill.climb = do.call(hillclimbBaseLearners, c(list(.learner, .task), .learner$parset)),
-    compress = compressBaseLearners(.learner, .task, .learner$parset)
+    compress = compressBaseLearners(.learner, .task, .learner$parset),
+    boostStack = boostStack(.learner, .task)
   )
 }
 
