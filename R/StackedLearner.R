@@ -122,16 +122,16 @@ makeStackedLearner = function(base.learners, super.learner = NULL, predict.type 
     stop("Predicting standard errors currently not supported.")
   if (length(pts) > 1L)
     stop("Base learner must all have the same predict type!")
-  if (method %in% c("average", "hill.climb", "boostStack")) & (!is.null(super.learner) | is.null(predict.type)) )
+  if (method %in% c("average", "hill.climb", "boostStack") && (!is.null(super.learner) | is.null(predict.type)) )
     stop("No super learner needed for this method or the 'predict.type' is not specified.")
-  if (method != "average" & method != "hill.climb" & is.null(super.learner))
+  if (method %nin% c("average", "hill.climb", "boostStack") & is.null(super.learner))
     stop("You have to specify a super learner for this method.")
   #if (method != "average" & !is.null(predict.type))
   #  stop("Predict type has to be specified within the super learner.")
-  if (method %in% c("average", "hill.climb")) & use.feat)
+  if (method %in% c("average", "hill.climb") & use.feat)
     stop("The original features cannot be used for this method")
-  if (method == "boostStack" & !is.null(use.feat))
-    stop("Argument use.fest will be ignored for this method")
+  #if (method == "boostStack" & !is.null(use.feat))
+  #  stop("Argument use.fest will be ignored for this method")
   #if (!inherits(resampling, "CVDesc")) # new 
   #  stop("Currently only CV is allowed for resampling!") # new
 
@@ -613,7 +613,7 @@ compressBaseLearners = function(learner, task, parset = list()) {
 }
 
 
-stackBoost = function(learner, task) {
+boostStack = function(learner, task) {
   new.task = task
   #FIXME: (Later) Only save the last prediction
   best.lrn = base.models = predictions = vector("list", length = learner$parset$niter)
@@ -633,6 +633,7 @@ stackBoost = function(learner, task) {
     # FIXME: report performance or something
     #message(paste(niter, ":", performace(predictions[[i]], measure = measure)))
   }
+  class(learner) = c("StackedLearner", "BaseEnsemble", "Learner")
   list(method = "boostStack", base.models = base.models, super.model = NULL,
        pred.train = predictions[[learner$parset$niter]])
   
