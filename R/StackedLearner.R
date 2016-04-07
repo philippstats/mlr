@@ -65,7 +65,7 @@
 #'    \item{k}{the size multiplier of the generated data}
 #'    \item{prob}{the probability to exchange values}
 #'    \item{s}{the standard deviation of each numerical feature}
-#' the parameters for \code{boostStack} method, including
+#' the parameters for \code{boost.stack} method, including
 #' \describe{
 #'    \item{mm.ps}{\code{ParamSet} for ModelMultiplexer}
 #'    \item{control}{\code{TuneControl} for parameter tuning}
@@ -104,9 +104,9 @@ makeStackedLearner = function(base.learners, super.learner = NULL, predict.type 
   }
 
   baseType = unique(extractSubList(base.learners, "type"))
-  assertChoice(method, c("average", "stack.nocv", "stack.cv", "hill.climb", "compress", "boostStack"))
+  assertChoice(method, c("average", "stack.nocv", "stack.cv", "hill.climb", "compress", "boost.stack"))
 
-  if (method %in% c("stack.cv", "hill.climb", "compress", "boostStack")) {
+  if (method %in% c("stack.cv", "hill.climb", "compress", "boost.stack")) {
     if (is.null(resampling)) {
       resampling = makeResampleDesc("CV", iters = 5L, stratify = ifelse(baseType == "classif", TRUE, FALSE))
     } else {
@@ -122,23 +122,23 @@ makeStackedLearner = function(base.learners, super.learner = NULL, predict.type 
     stop("Predicting standard errors currently not supported.")
   if (length(pts) > 1L)
     stop("Base learner must all have the same predict type!")
-  if (method %in% c("average", "hill.climb", "boostStack") && (!is.null(super.learner) | is.null(predict.type)) )
+  if (method %in% c("average", "hill.climb", "boost.stack") && (!is.null(super.learner) | is.null(predict.type)) )
     stop("No super learner needed for this method or the 'predict.type' is not specified.")
-  if (method %nin% c("average", "hill.climb", "boostStack") & is.null(super.learner))
+  if (method %nin% c("average", "hill.climb", "boost.stack") & is.null(super.learner))
     stop("You have to specify a super learner for this method.")
   #if (method != "average" & !is.null(predict.type))
   #  stop("Predict type has to be specified within the super learner.")
   if (method %in% c("average", "hill.climb") & use.feat)
     stop("The original features cannot be used for this method")
-  #if (method == "boostStack" & !is.null(use.feat))
+  #if (method == "boost.stack" & !is.null(use.feat))
   #  stop("Argument use.fest will be ignored for this method")
   #if (!inherits(resampling, "CVDesc")) # new 
   #  stop("Currently only CV is allowed for resampling!") # new
 
-  if (method == "boostStack") {
+  if (method == "boost.stack") {
     lrn = makeModelMultiplexer(base.learners = base.learners) # class ModelMultiplexer & BaseEnsemble
     lrn$id = "stack"
-    # FIXME: 
+    # FIXME: not nice
     class(lrn) = c("StackedLearner", class(lrn))
   } else {
     # lrn$predict.type is "response" by default change it using setPredictType
@@ -214,7 +214,7 @@ trainLearner.StackedLearner = function(.learner, .task, .subset, ...) {
     # hill.climb = hillclimbBaseLearners(.learner, .task, ...)
     hill.climb = do.call(hillclimbBaseLearners, c(list(.learner, .task), .learner$parset)),
     compress = compressBaseLearners(.learner, .task, .learner$parset),
-    boostStack = boostStack(.learner, .task)
+    boost.stack = boostStack(.learner, .task)
   )
 }
 
@@ -237,16 +237,19 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
     ifelse(length(td$class.levels) == 2L, "classif", "multiclassif"))
 
   # predict prob vectors with each base model
-  if (.learner$method != "compress") {
+  if (.learner$method %nin% c("compress", "boost.stack") {
     probs = getStackedBaseLearnerPredictions(model = .model, newdata = .newdata)
-  } else {
+  } else if (.learner$method == "compress"){ # FIXME: naming
     probs = .newdata
+  } else { # boost.stack
+  # FIXME multiclass, reg/or in data-version w/o Task:
+    new.task = makeTask(type = "classif", data = .newdata)
   }
 
-  if (.learner$method %in% c("average", "hill.climb")) {
-    if (.learner$method == "hill.climb") {
+  if (.learner$method %in% c("average", "hill.climb")) {    # average/h.c
+    if (.learner$method == "hill.climb") {                  # h.c
       model.weight = .model$learner.model$weights
-    } else {
+    } else {                                                # average
       model.weight = rep(1/length(probs), length(probs))
     }
     if (bms.pt == "prob") {
@@ -285,7 +288,7 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
         return(prob)
       }
     }
-  } else if (.learner$method == "compress") {
+  } else if (.learner$method == "compress") { # compress
     probs = as.data.frame(probs)
     pred = predict(sm, newdata = probs)
     if (sm.pt == "prob") {
@@ -293,7 +296,7 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
     } else {
       return(pred$data$response)
     }
-  } else {
+  } else if (.learner$method %in% c("stack.nocv", "stack.cv")) {
     probs = as.data.frame(probs)
     # feed probs into super model and we are done
     feat = .newdata[, colnames(.newdata) %nin% td$target, drop = FALSE]
@@ -310,6 +313,16 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
     } else {
       return(pred$data$response)
     }
+  } else { # boost.stack
+    niter = length(.learner$learner.model$base.models)
+    predictions = vector("list", length = niter)
+    for (i in seq_len(niter)) {
+      predictions[[i]] = predict(.learner$learner.model$base.models[[i]], new.task)
+      #FIXME for pred with response (or forbid it!?)
+      new.task = makeTaskWithNewFeat(new.task, new.col = predictions[[i]]$data$prob.pos, 
+        predict.type = "prob", feat.name = paste0("feat.", i))
+    }
+    return(final.pred = predictions[[niter]])
   }
 }
 
@@ -634,7 +647,7 @@ boostStack = function(learner, task) {
     #message(paste(niter, ":", performace(predictions[[i]], measure = measure)))
   }
   class(learner) = c("StackedLearner", "BaseEnsemble", "Learner")
-  list(method = "boostStack", base.models = base.models, super.model = NULL,
+  list(method = "boost.stack", base.models = base.models, super.model = NULL,
        pred.train = predictions[[learner$parset$niter]])
   
 }
