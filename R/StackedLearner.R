@@ -327,7 +327,11 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
           new.col = new.feat, feat.name = paste0("feat.", i))
       }
     }
-    return(as.matrix(getPredictionProbabilities(newest.pred, cl = td$class.levels)))
+    if (sm.pt == "prob") {
+      return(as.matrix(getPredictionProbabilities(newest.pred, cl = td$class.levels)))
+    } else {
+      return(newest.pred$datat$response)
+    }
     #FIXME multiclass - should work now: check it!
   }
 }
