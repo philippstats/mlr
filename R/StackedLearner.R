@@ -65,6 +65,11 @@
 #'    \item{k}{the size multiplier of the generated data}
 #'    \item{prob}{the probability to exchange values}
 #'    \item{s}{the standard deviation of each numerical feature}
+#' the parameters for \code{boostStack} method, including
+#' \describe{
+#'    \item{mm.ps}{\code{ParamSet} for ModelMultiplexer}
+#'    \item{control}{\code{TuneControl} for parameter tuning}
+#'    \item{niter}{number of features to add}
 #' }
 #' @examples
 #'   # Classification
@@ -99,9 +104,9 @@ makeStackedLearner = function(base.learners, super.learner = NULL, predict.type 
   }
 
   baseType = unique(extractSubList(base.learners, "type"))
-  assertChoice(method, c("average", "stack.nocv", "stack.cv", "hill.climb", "compress"))
+  assertChoice(method, c("average", "stack.nocv", "stack.cv", "hill.climb", "compress", "boostStack"))
 
-  if (method %in% c("stack.cv", "hill.climb", "compress")) {
+  if (method %in% c("stack.cv", "hill.climb", "compress", "boostStack")) {
     if (is.null(resampling)) {
       resampling = makeResampleDesc("CV", iters = 5L, stratify = ifelse(baseType == "classif", TRUE, FALSE))
     } else {
@@ -117,23 +122,31 @@ makeStackedLearner = function(base.learners, super.learner = NULL, predict.type 
     stop("Predicting standard errors currently not supported.")
   if (length(pts) > 1L)
     stop("Base learner must all have the same predict type!")
-  if ((method == "average" | method == "hill.climb") & (!is.null(super.learner) | is.null(predict.type)) )
+  if (method %in% c("average", "hill.climb", "boostStack")) & (!is.null(super.learner) | is.null(predict.type)) )
     stop("No super learner needed for this method or the 'predict.type' is not specified.")
   if (method != "average" & method != "hill.climb" & is.null(super.learner))
     stop("You have to specify a super learner for this method.")
   #if (method != "average" & !is.null(predict.type))
   #  stop("Predict type has to be specified within the super learner.")
-  if ((method == "average" | method == "hill.climb") & use.feat)
-    stop("The original features can not be used for this method")
+  if (method %in% c("average", "hill.climb")) & use.feat)
+    stop("The original features cannot be used for this method")
+  if (method == "boostStack" & !is.null(use.feat))
+    stop("Argument use.fest will be ignored for this method")
   #if (!inherits(resampling, "CVDesc")) # new 
   #  stop("Currently only CV is allowed for resampling!") # new
 
-  # lrn$predict.type is "response" by default change it using setPredictType
-  lrn =  makeBaseEnsemble(
-    id = "stack",
-    base.learners = base.learners,
-    cl = "StackedLearner"
-  )
+  if (method == "boostStack") {
+    lrn = makeModelMultiplexer(base.learners = base.learners) # class ModelMultiplexer & BaseEnsemble
+    lrn$id = "stack"
+    # FIXME: 
+    class(lrn) = c("StackedLearner", class(lrn))
+  } else {
+    # lrn$predict.type is "response" by default change it using setPredictType
+    lrn =  makeBaseEnsemble(
+      id = "stack",
+      base.learners = base.learners,
+      cl = "StackedLearner")
+  }
 
   # get predict.type from super learner or from predict.type
   if (!is.null(super.learner)) {
