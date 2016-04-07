@@ -157,7 +157,6 @@ makeStackedLearner = function(base.learners, super.learner = NULL, predict.type 
 
   lrn$fix.factors.prediction = TRUE
   lrn$use.feat = use.feat
-
   lrn$method = method
   lrn$super.learner = super.learner
   lrn$resampling = resampling
@@ -223,7 +222,6 @@ trainLearner.StackedLearner = function(.learner, .task, .subset, ...) {
 #' @export
 predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
   use.feat = .model$learner$use.feat
-
   # get predict.type from learner and super model (if available)
   sm.pt = .model$learner$predict.type
   sm = .model$learner.model$super.model
@@ -237,15 +235,15 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
     ifelse(length(td$class.levels) == 2L, "classif", "multiclassif"))
 
   # predict prob vectors with each base model
-  if (.learner$method %nin% c("compress", "boost.stack") {
+  if (.learner$method %nin% c("compress", "boost.stack")) {
     probs = getStackedBaseLearnerPredictions(model = .model, newdata = .newdata)
   } else if (.learner$method == "compress"){ # FIXME: naming
     probs = .newdata
   } else { # boost.stack
   # FIXME multiclass, reg/or in data-version w/o Task:
-    new.task = makeTask(type = "classif", data = .newdata)
+    #new.task = makeClassifTask(data = .newdata) # needs target
+    new.data = .newdata
   }
-
   if (.learner$method %in% c("average", "hill.climb")) {    # average/h.c
     if (.learner$method == "hill.climb") {                  # h.c
       model.weight = .model$learner.model$weights
@@ -309,20 +307,27 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
 
     pred = predict(sm, newdata = predData)
     if (sm.pt == "prob") {
+     # browser()
       return(as.matrix(getPredictionProbabilities(pred, cl = td$class.levels)))
     } else {
       return(pred$data$response)
     }
   } else { # boost.stack
-    niter = length(.learner$learner.model$base.models)
+    niter = length(.model$learner.model$base.models)
     predictions = vector("list", length = niter)
     for (i in seq_len(niter)) {
-      predictions[[i]] = predict(.learner$learner.model$base.models[[i]], new.task)
+       # browser()
+      predictions[[i]] = predict(.model$learner.model$base.models[[i]], newdata = new.data)
       #FIXME for pred with response (or forbid it!?)
-      new.task = makeTaskWithNewFeat(new.task, new.col = predictions[[i]]$data$prob.pos, 
-        predict.type = "prob", feat.name = paste0("feat.", i))
+      new.data = makeDataWithNewFeat(data = new.data, 
+        new.col = predictions[[i]]$data[,"prob.pos", drop = FALSE],
+        feat.name = paste0("feat.", i))
+     # browser()
     }
-    return(final.pred = predictions[[niter]])
+    final.pred = as.matrix(getPredictionProbabilities(predictions[[niter]], cl = td$class.levels))
+    return(final.pred)
+    #FIXME multiclass
+    #return(as.matrix(new.data[,NCOL(new.data), drop = FALSE]))
   }
 }
 
@@ -350,7 +355,7 @@ averageBaseLearners = function(learner, task) {
     probs[[i]] = getResponse(pred, full.matrix = TRUE)
     #message(paste0("loop>", round(mem_used()/1024/1024, 2), "-MB"))
   }
-  message(paste0(round(mem_used()/1024/1024, 2), "-MB"))
+  #message(paste0(round(mem_used()/1024/1024, 2), "-MB"))
 
   names(probs) = names(bls)
   list(method = "average", base.models = base.models, super.model = NULL,
@@ -499,8 +504,8 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
     # also fit all base models again on the complete original data set
     base.models[[i]] = train(bl, task)
         # new
-    print(bl$id)
-    print(gc())
+    #print(bl$id)
+    #print(gc())
     # new/
   }
   names(probs) = names(bls)
@@ -882,6 +887,16 @@ makeTaskWithNewFeat = function(task, new.col = NULL, pred = NULL, predict.type =
   }
 }
 
+makeDataWithNewFeat = function(data, new.col = NULL, feat.name = "feat") {
+  # new.col: vector or data.frame
+  n.new.col = NCOL(new.col)
+  if (n.new.col > 1) 
+    feat.name = paste(feat.name, seq_len(n.new.col), sep = "_")
+  #data = getTaskData(task, target.extra = TRUE)
+  data1 = cbind(data, new.col)
+  colnames(data1)[(NCOL(data)+1):NCOL(data1)] = feat.name
+  return(data = data1)
+}
 
 # TODOs:
 # - document + test + export
