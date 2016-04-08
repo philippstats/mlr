@@ -221,6 +221,7 @@ trainLearner.StackedLearner = function(.learner, .task, .subset, ...) {
 # won't use the crossvalidated predictions (for method = "stack.cv").
 #' @export
 predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
+  browser()
   use.feat = .model$learner$use.feat
   # get predict.type from learner and super model (if available)
   sm.pt = .model$learner$predict.type
@@ -235,7 +236,7 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
     ifelse(length(td$class.levels) == 2L, "classif", "multiclassif"))
 
   # predict prob vectors with each base model
-  if (.learner$method %nin% c("compress", "boost.stack")) {
+  if (.learner$method %nin% "compress") {
     probs = getStackedBaseLearnerPredictions(model = .model, newdata = .newdata)
   } else if (.learner$method == "compress"){ # FIXME: naming
     probs = .newdata
@@ -314,8 +315,10 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
   } else { # boost.stack
     niter = length(.model$learner.model$base.models)
     for (i in seq_len(niter)) {
+
       newest.pred = predict(.model$learner.model$base.models[[i]], newdata = new.data)
       #FIXME for pred with response (or forbid it!?)
+      # new.feat = getResponse(newest.pres) # is nicer
       if (bms.pt == "prob") {
         new.feat = getPredictionProbabilities(newest.pred, cl = td$class.levels)
         new.data = makeDataWithNewFeat(data = new.data, 
@@ -341,7 +344,7 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
 setPredictType.StackedLearner = function(learner, predict.type) {
   lrn = setPredictType.Learner(learner, predict.type)
   lrn$predict.type = predict.type
-  if ("super.learner"%in%names(lrn)) lrn$super.learner$predict.type = predict.type
+  if ("super.learner" %in% names(lrn)) lrn$super.learner$predict.type = predict.type
   return(lrn)
 }
 
@@ -354,7 +357,7 @@ averageBaseLearners = function(learner, task) {
   for (i in seq_along(bls)) {
     bl = bls[[i]]
     model = train(bl, task)
-    message(bl$id)
+    #message(bl$id)
     base.models[[i]] = model
     pred = predict(model, task = task)
     probs[[i]] = getResponse(pred, full.matrix = TRUE)
@@ -638,13 +641,17 @@ compressBaseLearners = function(learner, task, parset = list()) {
 
 boostStack = function(learner, task) {
   new.task = task
+  td = getTaskDescription(task)
   #FIXME: (Later) Only save the last prediction
-  best.lrn = base.models = predictions = vector("list", length = learner$parset$niter)
+  best.lrn = base.models = vector("list", length = learner$parset$niter)
   # FIXME: arrange classes. tuneParams needs "ModelMultiplexer" 
+      #browser()
+
   class(learner) = c("ModelMultiplexer", "StackedLearner", "BaseEnsemble", "Learner")
 
   for (i in seq_len(learner$parset$niter)) {
-  #FIXME: try to use tuneParams.ModelMultiplexer althoug it's not MM
+  #FIXME: 
+    #browser()
     res = tuneParams(learner = learner, task = new.task, 
       resampling = learner$resampling, par.set = learner$parset$mm.ps, 
       control = learner$parset$control)
@@ -652,15 +659,16 @@ boostStack = function(learner, task) {
     base.models[[i]] = train(best.lrn[[i]], new.task)
     predictions[[i]] = predict(base.models[[i]], new.task)
     ##
-    if (learner$bms.pt == "prob") {
+    bms.pt = unique(extractSubList(learner$base.learners, "predict.type"))
+    if (bms.pt == "prob") {
         new.feat = getPredictionProbabilities(predictions[[i]], cl = td$class.levels)
-        new.data = makeDataWithNewFeat(data = new.data, 
-          new.col = new.feat[, -NCOL(new.feat), drop = FALSE],
+        new.task = makeTaskWithNewFeat(task = new.task, 
+          new.feat = new.feat[, -NCOL(new.feat), drop = FALSE],
           feat.name = paste0("feat.", i))
       } else {
-        new.feat = predictions[[i]]$data$response
-        new.data = makeDataWithNewFeat(data = new.data, 
-          new.col = new.feat, feat.name = paste0("feat.", i))
+        new.feat = predictions[[i]]$data[, "response", drop = FALSE]
+        new.task = makeTaskWithNewFeat(task = new.task, 
+          new.feat = new.feat, feat.name = paste0("feat.", i))
       }
     }
     ##
@@ -669,7 +677,6 @@ boostStack = function(learner, task) {
     # FIXME: update par.set (for randomForest.mtry)
     # FIXME: report performance or something
     #message(paste(niter, ":", performace(predictions[[i]], measure = measure)))
-  }
   class(learner) = c("StackedLearner", "BaseEnsemble", "Learner")
   list(method = "boost.stack", base.models = base.models, super.model = NULL,
        pred.train = predictions[[learner$parset$niter]])
@@ -848,6 +855,26 @@ makeLearnerFromTuneResult = function(result = res) {
       predict.type = result$learner$predict.type), par.vals = result$x)  
   }
 }
+
+makeTaskWithNewFeat = function(task, new.feat, feat.name) {
+  assertClass(task, "Task")
+  assertClass(new.feat, "data.frame")
+  td = getTaskDescription(task)
+  raw.data = getTaskData(task)
+  n.new.col = NCOL(new.feat)
+  if (n.new.col > 1) 
+    feat.name = paste(feat.name, seq_len(n.new.col), sep = "_")
+  #data = getTaskData(task, target.extra = TRUE)
+  data = cbind(raw.data, new.feat)
+  colnames(data)[(NCOL(raw.data)+1):NCOL(data)] = feat.name
+
+  if (task$task.desc$type == "classif") {
+    makeClassifTask(data = data, target = td$target, positive = td$positive)
+  } else {
+    makeRegrTask(data = data, target =  td$target)
+  }
+}
+
 
 makeDataWithNewFeat = function(data, new.col = NULL, feat.name = "feat") {
   # new.col: vector or data.frame
