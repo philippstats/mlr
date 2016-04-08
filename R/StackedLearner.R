@@ -312,10 +312,9 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
     } else {
       return(pred$data$response)
     }
-  } else { # boost.stack
+  } else { #### boost.stack ####
     niter = length(.model$learner.model$base.models)
     for (i in seq_len(niter)) {
-
       newest.pred = predict(.model$learner.model$base.models[[i]], newdata = new.data)
       #FIXME for pred with response (or forbid it!?)
       # new.feat = getResponse(newest.pres) # is nicer
@@ -333,7 +332,7 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
     if (sm.pt == "prob") {
       return(as.matrix(getPredictionProbabilities(newest.pred, cl = td$class.levels)))
     } else {
-      return(newest.pred$datat$response)
+      return(newest.pred$data$response)
     }
     #FIXME multiclass - should work now: check it!
   }
@@ -645,12 +644,10 @@ boostStack = function(learner, task) {
   #FIXME: (Later) Only save the last prediction
   best.lrn = base.models = predictions = vector("list", length = learner$parset$niter)
   # FIXME: arrange classes. tuneParams needs "ModelMultiplexer" 
-      #browser()
   class(learner) = c("ModelMultiplexer", "StackedLearner", "BaseEnsemble", "Learner")
 
   for (i in seq_len(learner$parset$niter)) {
   #FIXME: Weiss nicht wieso tuneParams als train/predict class StackedLearner aufruft und nicht class ModelMultiplexer
-    #browser()
     res = tuneParams(learner = learner, task = new.task, 
       resampling = learner$resampling, par.set = learner$parset$mm.ps, 
       control = learner$parset$control)
