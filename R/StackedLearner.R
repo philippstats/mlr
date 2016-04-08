@@ -221,7 +221,7 @@ trainLearner.StackedLearner = function(.learner, .task, .subset, ...) {
 # won't use the crossvalidated predictions (for method = "stack.cv").
 #' @export
 predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
-  browser()
+ # browser()
   use.feat = .model$learner$use.feat
   # get predict.type from learner and super model (if available)
   sm.pt = .model$learner$predict.type
@@ -236,7 +236,7 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
     ifelse(length(td$class.levels) == 2L, "classif", "multiclassif"))
 
   # predict prob vectors with each base model
-  if (.learner$method %nin% "compress") {
+  if (.learner$method %nin% c("compress", "boost.stack")) {
     probs = getStackedBaseLearnerPredictions(model = .model, newdata = .newdata)
   } else if (.learner$method == "compress"){ # FIXME: naming
     probs = .newdata
@@ -643,14 +643,13 @@ boostStack = function(learner, task) {
   new.task = task
   td = getTaskDescription(task)
   #FIXME: (Later) Only save the last prediction
-  best.lrn = base.models = vector("list", length = learner$parset$niter)
+  best.lrn = base.models = predictions = vector("list", length = learner$parset$niter)
   # FIXME: arrange classes. tuneParams needs "ModelMultiplexer" 
       #browser()
-
   class(learner) = c("ModelMultiplexer", "StackedLearner", "BaseEnsemble", "Learner")
 
   for (i in seq_len(learner$parset$niter)) {
-  #FIXME: 
+  #FIXME: Weiss nicht wieso tuneParams als train/predict class StackedLearner aufruft und nicht class ModelMultiplexer
     #browser()
     res = tuneParams(learner = learner, task = new.task, 
       resampling = learner$resampling, par.set = learner$parset$mm.ps, 
