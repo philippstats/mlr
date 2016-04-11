@@ -221,7 +221,6 @@ trainLearner.StackedLearner = function(.learner, .task, .subset, ...) {
 # won't use the crossvalidated predictions (for method = "stack.cv").
 #' @export
 predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
- # browser()
   use.feat = .model$learner$use.feat
   # get predict.type from learner and super model (if available)
   sm.pt = .model$learner$predict.type
@@ -329,11 +328,18 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
           new.col = new.feat, feat.name = paste0("feat.", i))
       }
     }
-#    if (sm.pt == "prob") {
-      return(as.matrix(getPredictionProbabilities(newest.pred, cl = td$class.levels)))
-#    } else {
-#      return(newest.pred$data$response)
-#    }
+    if (sm.pt == "prob") {
+      if (bms.pt == "prob") {
+        return(as.matrix(getPredictionProbabilities(newest.pred, cl = td$class.levels)))
+      } else {
+        last.model = .model$learner.model$base.models[[niter]]
+        last.model$learner$predict.type = "prob"
+        newest.pred = predict(last.model, newdata = new.data)
+        return(as.matrix(getPredictionProbabilities(newest.pred, cl = td$class.levels)))
+      }
+    } else { #sm.pt = response; bms.pt = prob or response; note: prob has col "response" too
+      return(newest.pred$data$response) #
+    }
     #FIXME multiclass - should work now: check it!
   }
 }
@@ -500,9 +506,9 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
   rin = makeResampleInstance(learner$resampling, task = task)
   for (i in seq_along(bls)) {
     bl = bls[[i]]
-                message(paste0(i, ">", bl$id)
+    message(paste0(i, ">", bl$id))
     resres[[i]] = r = resample(bl, task, rin, show.info = FALSE) #new
-                message(paste0(">resample>", round(mem_used()/1024/1024, 2), "-MB"))
+    message(paste0(">resample>", round(mem_used()/1024/1024, 2), "-MB"))
 
     if (type == "regr") {
       probs[[i]] = matrix(getResponse(r$pred, full.matrix = TRUE), ncol = 1)
@@ -512,7 +518,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
     }
     # also fit all base models again on the complete original data set
     base.models[[i]] = train(bl, task)
-                    message(paste0(">train>", round(mem_used()/1024/1024, 2), "-MB"))
+    message(paste0(">train>", round(mem_used()/1024/1024, 2), "-MB"))
         # new
     #print(bl$id)
     #print(gc())
@@ -649,7 +655,10 @@ boostStack = function(learner, task) {
   # FIXME: arrange classes. tuneParams needs "ModelMultiplexer" 
   class(learner) = c("ModelMultiplexer", "StackedLearner", "BaseEnsemble", "Learner")
 
+  sm.pt = learner$predict.type
   bms.pt = unique(extractSubList(learner$base.learners, "predict.type"))
+  #FIXME p.t uberschreiben, da sonst tuneParams abstürzt. danach kanns wieder geändert werden oder es wird einfach sm.pt übergeben
+  learner$predict.type = bms.pt # !
   for (i in seq_len(learner$parset$niter)) {
   #FIXME: Weiss nicht wieso tuneParams als train/predict class StackedLearner aufruft und nicht class ModelMultiplexer
     res = tuneParams(learner = learner, task = new.task, 
