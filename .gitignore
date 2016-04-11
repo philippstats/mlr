@@ -10,3 +10,4 @@ src/*.dll
 tests/testthat/Rplots.pdf
 testinfo.RData
 inst/doc/
+vignettes/
