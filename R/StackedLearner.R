@@ -491,8 +491,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
 
   bls = learner$base.learners
   if (type != "regr") {
-    for (i in 1:length(bls)) {
-      if (bls[[i]]$predict.type == "response")
+    if ("response" %in% unique(extractSubList(bls, "predict.type")))
         stop("Hill climbing algorithm only takes probability predict type for classification.")
     }
   }
