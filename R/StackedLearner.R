@@ -356,13 +356,13 @@ averageBaseLearners = function(learner, task) {
   for (i in seq_along(bls)) {
     bl = bls[[i]]
     model = train(bl, task)
-    #message(bl$id)
+    message(bl$id)
     base.models[[i]] = model
     pred = predict(model, task = task)
     probs[[i]] = getResponse(pred, full.matrix = TRUE)
-    #message(paste0("loop>", round(mem_used()/1024/1024, 2), "-MB"))
+    message(paste0("loop>", round(mem_used()/1024/1024, 2), "-MB"))
   }
-  #message(paste0(round(mem_used()/1024/1024, 2), "-MB"))
+  message(paste0(round(mem_used()/1024/1024, 2), "-MB"))
   names(probs) = names(bls)
   list(method = "average", base.models = base.models, super.model = NULL,
        pred.train = probs)
@@ -493,7 +493,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
   if (type != "regr") {
     if ("response" %in% unique(extractSubList(bls, "predict.type")))
         stop("Hill climbing algorithm only takes probability predict type for classification.")
-    }
+
   }
   # cross-validate all base learners and get a prob vector for the whole dataset for each learner
   base.models = resres = probs = vector("list", length(bls)) #new
@@ -646,7 +646,6 @@ boostStack = function(learner, task) {
   class(learner) = c("ModelMultiplexer", "StackedLearner", "BaseEnsemble", "Learner")
 
   bms.pt = unique(extractSubList(learner$base.learners, "predict.type"))
-
   for (i in seq_len(learner$parset$niter)) {
   #FIXME: Weiss nicht wieso tuneParams als train/predict class StackedLearner aufruft und nicht class ModelMultiplexer
     res = tuneParams(learner = learner, task = new.task, 
