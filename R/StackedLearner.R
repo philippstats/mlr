@@ -329,11 +329,11 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
           new.col = new.feat, feat.name = paste0("feat.", i))
       }
     }
-    if (sm.pt == "prob") {
+#    if (sm.pt == "prob") {
       return(as.matrix(getPredictionProbabilities(newest.pred, cl = td$class.levels)))
-    } else {
-      return(newest.pred$data$response)
-    }
+#    } else {
+#      return(newest.pred$data$response)
+#    }
     #FIXME multiclass - should work now: check it!
   }
 }
@@ -363,7 +363,6 @@ averageBaseLearners = function(learner, task) {
     #message(paste0("loop>", round(mem_used()/1024/1024, 2), "-MB"))
   }
   #message(paste0(round(mem_used()/1024/1024, 2), "-MB"))
-
   names(probs) = names(bls)
   list(method = "average", base.models = base.models, super.model = NULL,
        pred.train = probs)
@@ -377,6 +376,7 @@ stackNoCV = function(learner, task) {
   bls = learner$base.learners
   use.feat = learner$use.feat
   base.models = probs = vector("list", length(bls))
+  # FIXME: parallize it
   for (i in seq_along(bls)) {
     bl = bls[[i]]
     model = train(bl, task)
@@ -646,6 +646,8 @@ boostStack = function(learner, task) {
   # FIXME: arrange classes. tuneParams needs "ModelMultiplexer" 
   class(learner) = c("ModelMultiplexer", "StackedLearner", "BaseEnsemble", "Learner")
 
+  bms.pt = unique(extractSubList(learner$base.learners, "predict.type"))
+
   for (i in seq_len(learner$parset$niter)) {
   #FIXME: Weiss nicht wieso tuneParams als train/predict class StackedLearner aufruft und nicht class ModelMultiplexer
     res = tuneParams(learner = learner, task = new.task, 
@@ -655,7 +657,6 @@ boostStack = function(learner, task) {
     base.models[[i]] = train(best.lrn[[i]], new.task)
     predictions[[i]] = predict(base.models[[i]], new.task)
     ##
-    bms.pt = unique(extractSubList(learner$base.learners, "predict.type"))
     if (bms.pt == "prob") {
         new.feat = getPredictionProbabilities(predictions[[i]], cl = td$class.levels)
         new.task = makeTaskWithNewFeat(task = new.task, 
