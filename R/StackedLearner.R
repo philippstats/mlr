@@ -500,7 +500,10 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
   rin = makeResampleInstance(learner$resampling, task = task)
   for (i in seq_along(bls)) {
     bl = bls[[i]]
+                message(paste0(i, ">", bl$id)
     resres[[i]] = r = resample(bl, task, rin, show.info = FALSE) #new
+                message(paste0(">resample>", round(mem_used()/1024/1024, 2), "-MB"))
+
     if (type == "regr") {
       probs[[i]] = matrix(getResponse(r$pred, full.matrix = TRUE), ncol = 1)
     } else {
@@ -509,6 +512,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
     }
     # also fit all base models again on the complete original data set
     base.models[[i]] = train(bl, task)
+                    message(paste0(">train>", round(mem_used()/1024/1024, 2), "-MB"))
         # new
     #print(bl$id)
     #print(gc())
