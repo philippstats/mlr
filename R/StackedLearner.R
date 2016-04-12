@@ -366,9 +366,9 @@ averageBaseLearners = function(learner, task) {
     base.models[[i]] = model
     pred = predict(model, task = task)
     probs[[i]] = getResponse(pred, full.matrix = TRUE)
-    message(paste0("loop>", round(mem_used()/1024/1024, 2), "-MB"))
+    message(paste0("loop>", round(mem_used()/1000/1000, 2), "-MB"))
   }
-  message(paste0(round(mem_used()/1024/1024, 2), "-MB"))
+  message(paste0(round(mem_used()/1000/1000, 2), "-MB"))
   names(probs) = names(bls)
   list(method = "average", base.models = base.models, super.model = NULL,
        pred.train = probs)
@@ -508,7 +508,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
     bl = bls[[i]]
     message(paste0(i, ">", bl$id))
     resres[[i]] = r = resample(bl, task, rin, show.info = FALSE) #new
-    message(paste0(">resample>", round(mem_used()/1024/1024, 2), "-MB"))
+    message(paste0(">resample>", round(mem_used()/1000/1000, 2), "-MB"))
 
     if (type == "regr") {
       probs[[i]] = matrix(getResponse(r$pred, full.matrix = TRUE), ncol = 1)
@@ -518,7 +518,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
     }
     # also fit all base models again on the complete original data set
     base.models[[i]] = train(bl, task)
-    message(paste0(">train>", round(mem_used()/1024/1024, 2), "-MB"))
+    message(paste0(">train>", round(mem_used()/1000/1000, 2), "-MB"))
         # new
     #print(bl$id)
     #print(gc())
