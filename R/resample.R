@@ -98,6 +98,8 @@ resample = function(learner, task, resampling, measures, weights = NULL, models 
   iter.results = parallelMap(doResampleIteration, seq_len(rin$desc$iters), level = "mlr.resample", more.args = more.args)
   time2 = Sys.time()
   runtime = as.numeric(difftime(time2, time1, "sec"))
+  message(paste0(">resample end>", round(mem_used()/1000/1000, 2), "-MB"))
+
   addClasses(
     mergeResampleResult(learner, task, iter.results, measures, rin, models, extract, keep.pred, show.info, runtime),
     "ResampleResult"
@@ -134,6 +136,7 @@ doResampleIteration = function(learner, task, rin, i, measures, weights, model, 
     pred.test = predict(m, task, subset = test.i)
     ms.test = vnapply(measures, function(pm) performance(task = task, model = m, pred = pred.test, measures = pm))
   }
+  message(paste0(">doRI aft pred>", round(mem_used()/1000/1000, 2), "-MB"))
   ex = extract(m)
   list(
     measures.test = ms.test,
