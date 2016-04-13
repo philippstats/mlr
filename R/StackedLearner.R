@@ -255,7 +255,7 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
       for (i in 1:length(probs))
         probs[[i]] = probs[[i]]*model.weight[i]
       prob = Reduce("+", probs)
-      message(paste0(">pred aft Reduce>", cat(as.character(colSums(gc()[, c(2L,6L)])), sep = "/")))
+      message(paste0(">pred aft Reduce>", paste(sum(gc()[, 2L]), sum(gc()[, 6L]), sep = "/")))
 
       if (sm.pt == "prob") {
         # if super learner predictions should be probabilities
@@ -368,9 +368,9 @@ averageBaseLearners = function(learner, task) {
     base.models[[i]] = model
     pred = predict(model, task = task)
     probs[[i]] = getResponse(pred, full.matrix = TRUE)
-    message(paste0("loop>", cat(as.character(colSums(gc()[, c(2L,6L)])), sep = "/")))
+    message(paste0("loop>", paste(sum(gc()[, 2L]), sum(gc()[, 6L]), sep = "/")))
   }
-  message(paste0( cat(as.character(colSums(gc()[, c(2L,6L)])), sep = "/")))
+  message(paste(sum(gc()[, 2L]), sum(gc()[, 6L]), sep = "/"))
   names(probs) = names(bls)
   list(method = "average", base.models = base.models, super.model = NULL,
        pred.train = probs)
@@ -459,10 +459,13 @@ stackCV = function(learner, task) {
     feat = getTaskData(task)#[test.inds, ]
     feat = feat[, !colnames(feat)%in%tn, drop = FALSE]
     predData = cbind(probs, feat)
+    browser()
     super.task = makeSuperLearnerTask(learner$super.learner$type, data = predData, target = tn)
   } else {
+      browser()
     super.task = makeSuperLearnerTask(learner$super.learner$type, data = probs, target = tn)
   }
+  browser()
   super.model = train(learner$super.learner, super.task)
   list(method = "stack.cv", base.models = base.models,
        super.model = super.model, pred.train = pred.train)
@@ -510,7 +513,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
     bl = bls[[i]]
     message(paste0(i, ">", bl$id))
     resres[[i]] = r = resample(bl, task, rin, show.info = FALSE) #new
-    message(paste0(">hc aft resample>",  cat(as.character(colSums(gc()[, c(2L,6L)])), sep = "/")))
+    message(paste0(">hc aft resample>", paste(sum(gc()[, 2L]), sum(gc()[, 6L]), sep = "/")))
 
     if (type == "regr") {
       probs[[i]] = matrix(getResponse(r$pred, full.matrix = TRUE), ncol = 1)
@@ -520,13 +523,13 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
     }
     # also fit all base models again on the complete original data set
     base.models[[i]] = train(bl, task)
-    message(paste0(">hc aft train>",  cat(as.character(colSums(gc()[, c(2L,6L)])), sep = "/")))
+    message(paste0(">hc aft train>",  paste(sum(gc()[, 2L]), sum(gc()[, 6L]), sep = "/")))
         # new
     #print(bl$id)
     #print(gc())
     # new/
   }
-  message(paste0(">hc aft loop>",  cat(as.character(colSums(gc()[, c(2L,6L)])), sep = "/")))
+  message(paste0(">hc aft loop>",  paste(sum(gc()[, 2L]), sum(gc()[, 6L]), sep = "/")))
   names(probs) = names(bls)
   names(resres) = names(bls) #new
 
@@ -606,7 +609,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
     weights = weights + bagweight #807
   }
   weights = weights/sum(weights)
-  message(paste0(">hc end>",  cat(as.character(colSums(gc()[, c(2L,6L)])), sep = "/")))
+  message(paste0(">hc end>", paste(sum(gc()[, 2L]), sum(gc()[, 6L]), sep = "/")))
 
   list(method = "hill.climb", base.models = base.models, super.model = NULL,
        pred.train = probs, weights = weights)
@@ -723,7 +726,7 @@ getResponse = function(pred, full.matrix = NULL) {
 # Create a super learner task
 makeSuperLearnerTask = function(type, data, target) {
   data = data[, colnames(unique(as.matrix(data), MARGIN = 2))] # may not be useful for small data sets with predict.type=response
-  data = data[colSums(!is.na(data)) > 0]
+  #data = data[colSums(!is.na(data)) > 0]
   if (type == "classif") {
     removeConstantFeatures(task = makeClassifTask(data = data, target = target))
   } else {
