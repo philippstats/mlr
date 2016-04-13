@@ -98,7 +98,7 @@ resample = function(learner, task, resampling, measures, weights = NULL, models 
   iter.results = parallelMap(doResampleIteration, seq_len(rin$desc$iters), level = "mlr.resample", more.args = more.args)
   time2 = Sys.time()
   runtime = as.numeric(difftime(time2, time1, "sec"))
-  message(paste0(">resample end>", round(mem_used()/1000/1000, 2), "-MB"))
+  message(paste0(">resample end>", cat(as.character(colSums(gc()[, c(2L,6L)])), sep = "/")))
 
   addClasses(
     mergeResampleResult(learner, task, iter.results, measures, rin, models, extract, keep.pred, show.info, runtime),
@@ -136,7 +136,7 @@ doResampleIteration = function(learner, task, rin, i, measures, weights, model, 
     pred.test = predict(m, task, subset = test.i)
     ms.test = vnapply(measures, function(pm) performance(task = task, model = m, pred = pred.test, measures = pm))
   }
-  message(paste0(">doRI aft pred>", round(mem_used()/1000/1000, 2), "-MB"))
+  message(paste0(">doRI aft pred>", cat(as.character(colSums(gc()[, c(2L,6L)])), sep = "/")))
   ex = extract(m)
   list(
     measures.test = ms.test,
@@ -187,7 +187,7 @@ mergeResampleResult = function(learner, task, iter.results, measures, rin, model
 
   if (!keep.pred)
     pred = NULL
-
+  message(paste0(">mergeRR end>", cat(as.character(colSums(gc()[, c(2L,6L)])), sep = "/")))
   list(
     learner.id = learner$id,
     task.id = getTaskId(task),
