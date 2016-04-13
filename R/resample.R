@@ -187,8 +187,7 @@ mergeResampleResult = function(learner, task, iter.results, measures, rin, model
 
   if (!keep.pred)
     pred = NULL
-  message(paste0(">mergeRR end>",paste(sum(gc()[, 2L]), sum(gc()[, 6L]), sep = "/")))
-  list(
+  the_results = list(
     learner.id = learner$id,
     task.id = getTaskId(task),
     measures.train = ms.train,
@@ -200,4 +199,7 @@ mergeResampleResult = function(learner, task, iter.results, measures, rin, model
     extract = if (is.function(extract)) extractSubList(iter.results, "extract", simplify = FALSE) else NULL,
     runtime = runtime
   )
+
+  message(paste0(">mergeRR end!!!>",paste(sum(gc()[, 2L]), sum(gc()[, 6L]), sep = "/")))
+  return(the_results)
 }

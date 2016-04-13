@@ -459,10 +459,8 @@ stackCV = function(learner, task) {
     feat = getTaskData(task)#[test.inds, ]
     feat = feat[, !colnames(feat)%in%tn, drop = FALSE]
     predData = cbind(probs, feat)
-    browser()
     super.task = makeSuperLearnerTask(learner$super.learner$type, data = predData, target = tn)
   } else {
-      browser()
     super.task = makeSuperLearnerTask(learner$super.learner$type, data = probs, target = tn)
   }
   browser()
