@@ -318,7 +318,7 @@ averageBaseLearners = function(learner, task) {
   for (i in seq_along(bls)) {
     bl = bls[[i]]
     model = train(bl, task) # FIXME: err is failuremodel
-    message(paste(">>>", bl$id, paste(class(model))))
+    #message(paste(">>>", bl$id, paste(class(model))))
     base.models[[i]] = model
     pred = predict(model, task = task)
     probs[[i]] = getResponse(pred, full.matrix = TRUE)
@@ -329,9 +329,10 @@ averageBaseLearners = function(learner, task) {
   work.idx = unlist(lapply(base.models, function(x) !any(class(x) == "FailureModel")))
   base.models = base.models[work.idx]
   probs = probs[work.idx]
+  message(paste(">#bls>", length(base.models)))
 
   list(method = "average", base.models = base.models, super.model = NULL,
-       pred.train = probs)
+    pred.train = probs)
 }
 
 # stacking where we predict the training set in-sample, then super-learn on that
@@ -350,6 +351,11 @@ stackNoCV = function(learner, task) {
     probs[[i]] = getResponse(pred, full.matrix = FALSE)
   }
   names(probs) = names(bls)
+
+  # Remove FailureModels which would occur problems later
+  work.idx = unlist(lapply(base.models, function(x) !any(class(x) == "FailureModel")))
+  base.models = base.models[work.idx]
+  probs = probs[work.idx]
 
   pred.train = probs
 
@@ -395,6 +401,12 @@ stackCV = function(learner, task) {
   }
   names(probs) = names(bls)
 
+  # Remove FailureModels which would occur problems later
+  work.idx = unlist(lapply(base.models, function(x) !any(class(x) == "FailureModel")))
+  base.models = base.models[work.idx]
+  probs = probs[work.idx]
+
+
   if (type == "regr" | type == "classif") {
     probs = as.data.frame(probs)
   } else {
@@ -411,8 +423,8 @@ stackCV = function(learner, task) {
 
   # now fit the super learner for predicted_probs --> target
   probs = probs[order(test.inds), , drop = FALSE]
-  na_count <-function (x) sapply(x, function(y) sum(is.na(y)))
-  message(na_count(probs))
+  #na_count <-function (x) sapply(x, function(y) sum(is.na(y)))
+  #message(na_count(probs))
 
   if (use.feat) {
     # add data with normal features IN CORRECT ORDER
@@ -423,10 +435,12 @@ stackCV = function(learner, task) {
   } else {
     super.task = makeSuperLearnerTask(learner$super.learner$type, data = probs, target = tn)
   }
-  message(getTaskDescription(task))
-  message(na_count(getTaskData(super.task)))
-  
+  #message(getTaskDescription(task))
+  #message(na_count(getTaskData(super.task)))
+
   super.model = train(learner$super.learner, super.task)
+  message(class(super.model))
+  message(paste(">#bls>", length(base.models)))
   list(method = "stack.cv", base.models = base.models,
        super.model = super.model, pred.train = pred.train)
 }
@@ -481,10 +495,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
     }
     # also fit all base models again on the complete original data set
     base.models[[i]] = train(bl, task)
-        # new
-    print(bl$id)
-    print(gc())
-    # new/
+
   }
 
   names(probs) = names(bls)
@@ -505,7 +516,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
   probs[[tn]] = getTaskTargets(task)[test.inds]
   probs[[tn]] = probs[[tn]][order(test.inds)]
   # probs = probs[order(test.inds), , drop = FALSE]
-  m = length(bls)
+  m = length(base.models)
   weights = rep(0, m)
   flag = TRUE
   for (bagind in 1:bagtime) {
@@ -572,7 +583,8 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
     weights = weights + bagweight #807
   }
   weights = weights/sum(weights)
-
+  
+  message(paste(">#bls>", length(base.models)))
   list(method = "hill.climb", base.models = base.models, super.model = NULL,
        pred.train = probs, weights = weights)
 }
@@ -641,12 +653,12 @@ getResponse = function(pred, full.matrix = NULL) {
 
 # Create a super learner task
 makeSuperLearnerTask = function(type, data, target) {
-  na_count <-function (x) sapply(x, function(y) sum(is.na(y)))
-  print(na_count(data))
+  #na_count <-function (x) sapply(x, function(y) sum(is.na(y)))
+  #print(na_count(data))
   data = data[, colnames(unique(as.matrix(data), MARGIN = 2))] # may not be useful for small data sets with predict.type=response
   # FIX it for now:
   data = data[ , colSums(is.na(data)) == 0]
-  message((na_count(data)))
+  #message((na_count(data)))
   if (type == "classif") {
     removeConstantFeatures(task = makeClassifTask(data = data, target = target))
   } else {
