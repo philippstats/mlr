@@ -10,3 +10,5 @@ src/*.dll
 tests/testthat/Rplots.pdf
 testinfo.RData
 inst/doc/
+R/.DS_Store
+
