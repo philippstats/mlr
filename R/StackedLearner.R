@@ -233,6 +233,7 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
     if (.learner$method == "hill.climb") {
       model.weight = .model$learner.model$weights
     } else {
+      #FIXME Alternatively: all models can be kept. and here is the error handling done
       model.weight = rep(1/length(probs), length(probs))
     }
     if (bms.pt == "prob") {
@@ -316,16 +317,19 @@ averageBaseLearners = function(learner, task) {
   base.models = probs = vector("list", length(bls))
   for (i in seq_along(bls)) {
     bl = bls[[i]]
-    model = train(bl, task)
-    message(bl$id)
+    model = train(bl, task) # FIXME: err is failuremodel
+    message(paste(">>>", bl$id, paste(class(model))))
     base.models[[i]] = model
     pred = predict(model, task = task)
     probs[[i]] = getResponse(pred, full.matrix = TRUE)
-    #message(paste0("loop>", round(mem_used()/1024/1024, 2), "-MB"))
   }
-  message(paste0(round(mem_used()/1024/1024, 2), "-MB"))
-
   names(probs) = names(bls)
+
+  #FIXME: dont know if it is the nicest way to remove bls 
+  work.idx = unlist(lapply(base.models, function(x) !any(class(x) == "FailureModel")))
+  base.models = base.models[work.idx]
+  probs = probs[work.idx]
+
   list(method = "average", base.models = base.models, super.model = NULL,
        pred.train = probs)
 }
@@ -407,6 +411,9 @@ stackCV = function(learner, task) {
 
   # now fit the super learner for predicted_probs --> target
   probs = probs[order(test.inds), , drop = FALSE]
+  na_count <-function (x) sapply(x, function(y) sum(is.na(y)))
+  message(na_count(probs))
+
   if (use.feat) {
     # add data with normal features IN CORRECT ORDER
     feat = getTaskData(task)#[test.inds, ]
@@ -416,6 +423,9 @@ stackCV = function(learner, task) {
   } else {
     super.task = makeSuperLearnerTask(learner$super.learner$type, data = probs, target = tn)
   }
+  message(getTaskDescription(task))
+  message(na_count(getTaskData(super.task)))
+  
   super.model = train(learner$super.learner, super.task)
   list(method = "stack.cv", base.models = base.models,
        super.model = super.model, pred.train = pred.train)
@@ -476,8 +486,15 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
     print(gc())
     # new/
   }
+
   names(probs) = names(bls)
   names(resres) = names(bls) #new
+
+  # Remove FailureModels which would occur problems later
+  work.idx = unlist(lapply(base.models, function(x) !any(class(x) == "FailureModel")))
+  base.models = base.models[work.idx]
+  resres = resres[work.idx]
+  probs = probs[work.idx]
 
   # add true target column IN CORRECT ORDER
   tn = getTaskTargetNames(task)
@@ -624,7 +641,12 @@ getResponse = function(pred, full.matrix = NULL) {
 
 # Create a super learner task
 makeSuperLearnerTask = function(type, data, target) {
+  na_count <-function (x) sapply(x, function(y) sum(is.na(y)))
+  print(na_count(data))
   data = data[, colnames(unique(as.matrix(data), MARGIN = 2))] # may not be useful for small data sets with predict.type=response
+  # FIX it for now:
+  data = data[ , colSums(is.na(data)) == 0]
+  message((na_count(data)))
   if (type == "classif") {
     removeConstantFeatures(task = makeClassifTask(data = data, target = target))
   } else {
