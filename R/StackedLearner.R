@@ -400,39 +400,39 @@ stackCV = function(learner, task) {
   bls = learner$base.learners
   use.feat = learner$use.feat
   # cross-validate all base learners and get a prob vector for the whole dataset for each learner
-  base.models = probs = vector("list", length(bls))
+  base.models = pred.data = vector("list", length(bls))
   rin = makeResampleInstance(learner$resampling, task = task)
   for (i in seq_along(bls)) {
     bl = bls[[i]]
     r = resample(bl, task, rin, show.info = FALSE)
-    probs[[i]] = getResponse(r$pred, full.matrix = FALSE)
+    pred.data[[i]] = getResponse(r$pred, full.matrix = FALSE)
     # also fit all base models again on the complete original data set
     base.models[[i]] = train(bl, task)
   }
-  names(probs) = names(bls)
+  names(pred.data) = names(bls)
 
   # Remove FailureModels which would occur problems later
   work.idx = unlist(lapply(base.models, function(x) !any(class(x) == "FailureModel")))
   base.models = base.models[work.idx]
-  probs = probs[work.idx]
+  pred.data = pred.data[work.idx]
 
 
   if (type == "regr" | type == "classif") {
-    probs = as.data.frame(probs)
+    pred.data = as.data.frame(pred.data)
   } else {
-    probs = as.data.frame(lapply(probs, function(X) X)) #X[,-ncol(X)]))
+    pred.data = as.data.frame(lapply(pred.data, function(X) X)) #X[,-ncol(X)]))
   }
 
   # add true target column IN CORRECT ORDER
   tn = getTaskTargetNames(task)
   test.inds = unlist(rin$test.inds)
 
-  pred.train = as.list(probs[order(test.inds), , drop = FALSE])
+  pred.train = as.list(pred.data[order(test.inds), , drop = FALSE])
 
-  probs[[tn]] = getTaskTargets(task)[test.inds]
+  pred.data[[tn]] = getTaskTargets(task)[test.inds]
 
   # now fit the super learner for predicted_probs --> target
-  probs = probs[order(test.inds), , drop = FALSE]
+  pred.data = pred.data[order(test.inds), , drop = FALSE]
   #na_count <-function (x) sapply(x, function(y) sum(is.na(y)))
   #message(na_count(probs))
 
@@ -440,17 +440,19 @@ stackCV = function(learner, task) {
     # add data with normal features IN CORRECT ORDER
     feat = getTaskData(task)#[test.inds, ]
     feat = feat[, !colnames(feat)%in%tn, drop = FALSE]
-    predData = cbind(probs, feat)
-    super.task = makeSuperLearnerTask(learner$super.learner$type, data = predData, target = tn)
+    pred.data = cbind(pred.data, feat)
+    super.task = makeSuperLearnerTask(learner$super.learner$type, data = pred.data, target = tn)
   } else {
-    super.task = makeSuperLearnerTask(learner$super.learner$type, data = probs, target = tn)
+    super.task = makeSuperLearnerTask(learner$super.learner$type, data = pred.data, target = tn)
   }
   #message(getTaskDescription(task))
   #message(na_count(getTaskData(super.task)))
 
   super.model = train(learner$super.learner, super.task)
+  
   message(class(super.model))
   message(paste(">#bls>", length(base.models)))
+
   list(method = "stack.cv", base.models = base.models,
        super.model = super.model, pred.train = pred.train)
 }
