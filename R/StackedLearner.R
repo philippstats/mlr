@@ -186,8 +186,18 @@ getStackedBaseLearnerPredictions = function(model, newdata = NULL) {
     }
 
     names(probs) = sapply(bms, function(X) X$learner$id) #names(.learner$base.learners)
+
+    work.idx = !unlist(lapply(probs, checkIfNAorNull))
+    probs = probs[work.idx]
+
   }
   return(probs)
+}
+
+checkIfNAorNull = function(x) {
+  if (is.null(x)) return(TRUE)
+  if (any(is.na(x))) return(TRUE)
+  else FALSE
 }
 
 #' @export
@@ -208,11 +218,11 @@ trainLearner.StackedLearner = function(.learner, .task, .subset, ...) {
 # won't use the crossvalidated predictions (for method = "stack.cv").
 #' @export
 predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
+  # FIXME actually only .learner$method is needed
   use.feat = .model$learner$use.feat
 
   # get predict.type from learner and super model (if available)
   sm.pt = .model$learner$predict.type
-  sm = .model$learner.model$super.model
 
   # get base learner and predict type
   bms.pt = unique(extractSubList(.model$learner$base.learners, "predict.type"))
@@ -280,7 +290,7 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
     } else {
       return(pred$data$response)
     }
-  } else {
+  } else { #stack.nocv stack.cv
     probs = as.data.frame(probs)
     # feed probs into super model and we are done
     feat = .newdata[, colnames(.newdata) %nin% td$target, drop = FALSE]
@@ -290,7 +300,7 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
     } else {
       predData = probs
     }
-
+    sm = .model$learner.model$super.model
     pred = predict(sm, newdata = predData)
     if (sm.pt == "prob") {
       return(as.matrix(getPredictionProbabilities(pred, cl = td$class.levels)))
