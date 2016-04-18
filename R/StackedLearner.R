@@ -186,9 +186,11 @@ getStackedBaseLearnerPredictions = function(model, newdata = NULL) {
     }
 
     names(pred.data) = sapply(bms, function(X) X$learner$id) #names(.learner$base.learners)
-
-    work.idx = !unlist(lapply(pred.data, checkIfNAorNull))
-    pred.data = pred.data[work.idx]
+    
+    # FIXME I don
+    broke.idx.pd = which(unlist(lapply(pred.data, function(x) checkIfNAorNull(x))))
+    if (length(broke.idx.pd) > 0)
+      pred.data = pred.data[-broke.idx.pd]
 
   }
   return(pred.data)
@@ -294,16 +296,18 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
     }
   } else { #stack.nocv stack.cv
     pred.data = as.data.frame(pred.data)
-    # feed pred.data into super model and we are done
-    feat = .newdata[, colnames(.newdata) %nin% td$target, drop = FALSE]
 
     if (use.feat) {
+      # feed pred.data into super model and we are done
+      feat = .newdata[, colnames(.newdata) %nin% td$target, drop = FALSE]
       predData = cbind(pred.data, feat)
     } else {
       predData = pred.data
     }
     sm = .model$learner.model$super.model
+    message("before")
     pred = predict(sm, newdata = predData)
+    message(paste("c_p", class(pred)[1]))
     if (sm.pt == "prob") {
       return(as.matrix(getPredictionProbabilities(pred, cl = td$class.levels)))
     } else {
@@ -337,14 +341,20 @@ averageBaseLearners = function(learner, task) {
   }
   names(pred.data) = names(bls)
 
-  #FIXME: dont know if it is the nicest way to remove bls 
-  work.idx.bm = unlist(lapply(base.models, function(x) !any(class(x) == "FailureModel")))
-  work.idx.pd = unlist(lapply(pred.data, function(x) !any(is.na(x))))
-  work.idx = unique(work.idx.bm, work.idx.pd)
+  #FIXME: I don't know if it is the nicest way to remove bls 
+  broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
+  broke.idx.pd = which(unlist(lapply(pred.data, function(x) any(is.na(x)))))
+  broke.idx = unique(broke.idx.bm, broke.idx.pd)
+  
+  message(paste(">#bls length BEF>", length(base.models)))
 
-  pred.data = pred.data[work.idx]
+  if (length(broke.idx) > 0) {
+    base.models = base.models[-broke.idx]
+    pred.data = pred.data[-broke.idx]
+  }
+  
 
-  message(paste(">#bls>", length(base.models)))
+  message(paste(">#bls length AFT>", length(base.models)))
 
   list(method = "average", base.models = base.models, super.model = NULL,
     pred.train = pred.data)
@@ -368,13 +378,15 @@ stackNoCV = function(learner, task) {
   names(pred.data) = names(bls)
 
   # Remove FailureModels which would occur problems later
-  work.idx.bm = unlist(lapply(base.models, function(x) !any(class(x) == "FailureModel")))
-  work.idx.pd = unlist(lapply(pred.data, function(x) !any(is.na(x))))
-  work.idx = unique(work.idx.bm, work.idx.pd)
+  broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
+  broke.idx.pd = which(unlist(lapply(pred.data, function(x) any(is.na(x)))))
+  broke.idx = unique(broke.idx.bm, broke.idx.pd)
 
-  base.models = base.models[work.idx]
-  pred.data = pred.data[work.idx]
-
+  if (length(broke.idx) > 0) {
+    base.models = base.models[-broke.idx]
+    pred.data = pred.data[-broke.idx]
+  }
+  
   pred.train = pred.data
 
   if (type == "regr" | type == "classif") {
@@ -420,14 +432,15 @@ stackCV = function(learner, task) {
   names(pred.data) = names(bls)
 
   # Remove FailureModels which would occur problems later
-  work.idx.bm = unlist(lapply(base.models, function(x) !any(class(x) == "FailureModel")))
-  work.idx.pd = unlist(lapply(pred.data, function(x) !any(is.na(x))))
-  work.idx = unique(work.idx.bm, work.idx.pd)
+  broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
+  broke.idx.pd = which(unlist(lapply(pred.data, function(x) any(is.na(x)))))
+  broke.idx = unique(broke.idx.bm, broke.idx.pd)
 
-  base.models = base.models[work.idx]
-  pred.data = pred.data[work.idx]
-
-
+  if (length(broke.idx) > 0) {
+    base.models = base.models[-broke.idx]
+    pred.data = pred.data[-broke.idx]
+  }
+  
   if (type == "regr" | type == "classif") {
     pred.data = as.data.frame(pred.data)
   } else {
@@ -509,7 +522,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
   rin = makeResampleInstance(learner$resampling, task = task)
   for (i in seq_along(bls)) {
     bl = bls[[i]]
-    resres[[i]] = r = resample(bl, task, rin, show.info = FALSE, extract = function(x) class(x)) #new
+    resres[[i]] = r = resample(bl, task, rin, show.info = FALSE) #new
     if (type == "regr") {
       pred.data[[i]] = matrix(getResponse(r$pred, full.matrix = TRUE), ncol = 1)
     } else {
@@ -517,22 +530,22 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
       colnames(pred.data[[i]]) = task$task.desc$class.levels
     }
     # also fit all base models again on the complete original data set
-    base.models[[i]] = train(bl, task)
+    base.models[[i]] = train(bl, task) #FIXME
 
   }
-
   names(pred.data) = names(bls)
   names(resres) = names(bls) #new
 
   # Remove FailureModels which would occur problems later
-  work.idx.bm = unlist(lapply(base.models, function(x) !any(class(x) == "FailureModel")))
-  work.idx.rr = unlist(lapply(resres$extract, function(x) !any(class(x) == "FailureModel")))
-  work.idx.pd = unlist(lapply(pred.data, function(x) !any(is.na(x))))
-  work.idx = unique(work.idx.bm, work.idx.rr, work.idx.pd)
+  broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
+  broke.idx.pd = which(unlist(lapply(pred.data, function(x) any(is.na(x)))))
+  broke.idx = unique(broke.idx.bm, broke.idx.pd)
 
-  resres = resres[work.idx]
-  pred.data = pred.data[work.idx]
-
+  if (length(broke.idx) > 0) {
+    resres = resres[-broke.idx]
+    pred.data = pred.data[-broke.idx]
+  }
+  
   # add true target column IN CORRECT ORDER
   tn = getTaskTargetNames(task)
   test.inds = unlist(rin$test.inds)
@@ -542,7 +555,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
   pred.data[[tn]] = getTaskTargets(task)[test.inds]
   pred.data[[tn]] = pred.data[[tn]][order(test.inds)]
   # pred.data = pred.data[order(test.inds), , drop = FALSE]
-  m = length(base.models)
+  m = length(resres)
   weights = rep(0, m)
   flag = TRUE
   for (bagind in 1:bagtime) {
@@ -579,13 +592,13 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
     flag = TRUE
 
     while (flag) {
-      score = rep(Inf, bagsize)
+      score = rep(Inf, m) #FIXME!
       for (i in bagmodel) {
         if (class(metric) == "function") { #new
-          score[i] = metric( (pred.data[[i]]+current.prob)/(selection.size+1), pred.data[[tn]] ) #new
+          score[i] = metric((pred.data[[i]]+current.prob)/(selection.size+1), pred.data[[tn]]) #new
         } else { # new
           assertClass(metric, "Measure")
-          score[i] = metric$fun(task, model = base.models[[i]], pred = resres[[i]]$pred) #new
+          score[i] = metric$fun(task, model = base.models[[i]], pred = resres[[i]]$pred) #new FIXME!
         }
       }
       inds = order(score)
@@ -596,13 +609,13 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
       }
 
       new.score = score[ind]
-      if (old.score-new.score<1e-8) {
+      if (old.score - new.score < 1e-8) {
         flag = FALSE
       } else {
-        current.prob = current.prob+pred.data[[ind]]
-        weights[ind] = weights[ind]+1
+        current.prob = current.prob + pred.data[[ind]]
+        weights[ind] = weights[ind] + 1
         selection.ind = c(selection.ind, ind)
-        selection.size = selection.size+1
+        selection.size = selection.size + 1
         old.score = new.score
       }
     }
