@@ -513,17 +513,15 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
 
   bls = learner$base.learners
   if (type != "regr") {
-    for (i in 1:length(bls)) {
-      if (bls[[i]]$predict.type == "response")
-        stop("Hill climbing algorithm only takes probability predict type for classification.")
-    }
+    if (any(extractSubList(bls, "predict.type") == "response"))
+      stop("Hill climbing algorithm only takes probability predict type for classification.")
   }
   # cross-validate all base learners and get a prob vector for the whole dataset for each learner
   base.models = resres = pred.data = vector("list", length(bls)) #new
   rin = makeResampleInstance(learner$resampling, task = task)
   for (i in seq_along(bls)) {
     bl = bls[[i]]
-    resres[[i]] = r = resample(bl, task, rin, show.info = FALSE) #new
+    resres[[i]] = r = resample(bl, task, rin, measure = metric, show.info = FALSE) #new
     if (type == "regr") {
       pred.data[[i]] = matrix(getResponse(r$pred, full.matrix = TRUE), ncol = 1)
     } else {
@@ -546,8 +544,9 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
     messagef("Base Learner %s is broken and will be removed\n", names(bls)[broke.idx])
     resres = resres[-broke.idx]
     pred.data = pred.data[-broke.idx]
+    base.models = base.models[-broke.idx]
   }
-  
+
   # add true target column IN CORRECT ORDER
   tn = getTaskTargetNames(task)
   test.inds = unlist(rin$test.inds)
