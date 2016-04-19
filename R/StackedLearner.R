@@ -190,6 +190,7 @@ getStackedBaseLearnerPredictions = function(model, newdata = NULL) {
     # FIXME I don
     broke.idx.pd = which(unlist(lapply(pred.data, function(x) checkIfNAorNull(x))))
     if (length(broke.idx.pd) > 0)
+      messagef("Base Learner %s is broken in 'getStackedBaseLearnerPredictions' and will be removed\n", names(bls)[broke.idx])
       pred.data = pred.data[-broke.idx.pd]
 
   }
@@ -244,6 +245,10 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
   if (.learner$method %in% c("average", "hill.climb")) {
     if (.learner$method == "hill.climb") {
       model.weight = .model$learner.model$weights
+      # model.weights need to be adjusted when base learner fail in prediction
+      number.pd = length(pred.data)
+      number.mw = length(model.weights)
+      # TODO
     } else {
       #FIXME Alternatively: all models can be kept. and here is the error handling done
       model.weight = rep(1/length(pred.data), length(pred.data))
@@ -252,15 +257,15 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
       # if base learner predictions are probabilities for classification
       for (i in 1:length(pred.data))
         pred.data[[i]] = pred.data[[i]]*model.weight[i]
-      prob = Reduce("+", pred.data)
+      pred.data = Reduce("+", pred.data)
       if (sm.pt == "prob") {
         # if super learner predictions should be probabilities
-        return(as.matrix(prob))
+        return(as.matrix(pred.data))
       } else {
         # if super learner predictions should be responses
-        return(factor(colnames(prob)[max.col(prob)], td$class.levels))
+        return(factor(colnames(pred.data)[max.col(pred.data)], td$class.levels))
       }
-    } else {
+    } else { # bms.pt == "response"
       pred.data = as.data.frame(pred.data)
       # if base learner predictions are responses
       if (type == "classif" || type == "multiclassif") {
@@ -345,16 +350,12 @@ averageBaseLearners = function(learner, task) {
   broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
   broke.idx.pd = which(unlist(lapply(pred.data, function(x) any(is.na(x)))))
   broke.idx = unique(broke.idx.bm, broke.idx.pd)
-  
-  message(paste(">#bls length BEF>", length(base.models)))
 
   if (length(broke.idx) > 0) {
+    messagef("Base Learner %s is broken and will be removed\n", names(bls)[broke.idx])
     base.models = base.models[-broke.idx]
     pred.data = pred.data[-broke.idx]
   }
-  
-
-  message(paste(">#bls length AFT>", length(base.models)))
 
   list(method = "average", base.models = base.models, super.model = NULL,
     pred.train = pred.data)
@@ -542,6 +543,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
   broke.idx = unique(broke.idx.bm, broke.idx.pd)
 
   if (length(broke.idx) > 0) {
+    messagef("Base Learner %s is broken and will be removed\n", names(bls)[broke.idx])
     resres = resres[-broke.idx]
     pred.data = pred.data[-broke.idx]
   }
