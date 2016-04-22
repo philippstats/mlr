@@ -189,10 +189,10 @@ getStackedBaseLearnerPredictions = function(model, newdata = NULL) {
     
     # FIXME I don
     broke.idx.pd = which(unlist(lapply(pred.data, function(x) checkIfNAorNull(x))))
-    if (length(broke.idx.pd) > 0)
+    if (length(broke.idx.pd) > 0) {
       messagef("Base Learner %s is broken in 'getStackedBaseLearnerPredictions' and will be removed\n", names(bls)[broke.idx])
       pred.data = pred.data[-broke.idx.pd]
-
+    }
   }
   return(pred.data)
 }
@@ -384,6 +384,7 @@ stackNoCV = function(learner, task) {
   broke.idx = unique(broke.idx.bm, broke.idx.pd)
 
   if (length(broke.idx) > 0) {
+    messagef("Base Learner %s is broken and will be removed\n", names(bls)[broke.idx])
     base.models = base.models[-broke.idx]
     pred.data = pred.data[-broke.idx]
   }
@@ -438,6 +439,7 @@ stackCV = function(learner, task) {
   broke.idx = unique(broke.idx.bm, broke.idx.pd)
 
   if (length(broke.idx) > 0) {
+    messagef("Base Learner %s is broken and will be removed\n", names(bls)[broke.idx])
     base.models = base.models[-broke.idx]
     pred.data = pred.data[-broke.idx]
   }
@@ -521,7 +523,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
   rin = makeResampleInstance(learner$resampling, task = task)
   for (i in seq_along(bls)) {
     bl = bls[[i]]
-    resres[[i]] = r = resample(bl, task, rin, measure = metric, show.info = FALSE) #new
+    resres[[i]] = r = resample(bl, task, rin, show.info = FALSE) #new
     if (type == "regr") {
       pred.data[[i]] = matrix(getResponse(r$pred, full.matrix = TRUE), ncol = 1)
     } else {
@@ -586,14 +588,14 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
     # current.prob = rep(0, nrow(pred.data))
     current.prob = matrix(0, nrow(pred.data[[1]]), ncol(pred.data[[1]]))
     old.score = Inf
-    if (selection.size>0) {
+    if (selection.size > 0) {
       current.prob = Reduce('+', pred.data[selection.ind])
       old.score = metric(current.prob/selection.size, pred.data[[tn]]) #todo-metric
     }
     flag = TRUE
 
     while (flag) {
-      score = rep(Inf, m) #FIXME!
+      score = rep(Inf, m)
       for (i in bagmodel) {
         if (class(metric) == "function") { #new
           score[i] = metric((pred.data[[i]]+current.prob)/(selection.size+1), pred.data[[tn]]) #new
