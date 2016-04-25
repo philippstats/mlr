@@ -188,7 +188,7 @@ getStackedBaseLearnerPredictions = function(model, newdata = NULL) {
     names(pred.data) = sapply(bms, function(X) X$learner$id) #names(.learner$base.learners)
     
     # FIXME I don
-    broke.idx.pd = which(unlist(lapply(pred.data, function(x) checkIfNAorNull(x))))
+    broke.idx.pd = which(unlist(lapply(pred.data, function(x) checkIfNullOrAnyNA(x))))
     if (length(broke.idx.pd) > 0) {
       messagef("Base Learner %s is broken in 'getStackedBaseLearnerPredictions' and will be removed\n", names(bls)[broke.idx])
       pred.data = pred.data[-broke.idx.pd]
@@ -197,7 +197,7 @@ getStackedBaseLearnerPredictions = function(model, newdata = NULL) {
   return(pred.data)
 }
 
-checkIfNAorNull = function(x) {
+checkIfNullOrAnyNA = function(x) {
   if (is.null(x)) return(TRUE)
   if (any(is.na(x))) return(TRUE)
   else FALSE
@@ -310,9 +310,9 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
       predData = pred.data
     }
     sm = .model$learner.model$super.model
-    message("before")
+    messagef("Super model '%s' will use %s features for prediction", sm$id, NCOL(predData))
+    messagef("There are %s NA in 'predData'", sum(is.na(predData)))
     pred = predict(sm, newdata = predData)
-    message(paste("c_p", class(pred)[1]))
     if (sm.pt == "prob") {
       return(as.matrix(getPredictionProbabilities(pred, cl = td$class.levels)))
     } else {
@@ -409,6 +409,7 @@ stackNoCV = function(learner, task) {
   } else {
     super.task = makeSuperLearnerTask(learner$super.learner$type, data = pred.data, target = td$target)
   }
+  messagef("Super learner '%s' will be trained with %s features", learner$super.learner$id, getTaskNFeats(super.task))
   super.model = train(learner$super.learner, super.task)
   list(method = "stack.no.cv", base.models = base.models,
        super.model = super.model, pred.train = pred.train)
@@ -474,7 +475,7 @@ stackCV = function(learner, task) {
   }
   #message(getTaskDescription(task))
   #message(na_count(getTaskData(super.task)))
-
+  messagef("Super learner '%s' will be trained with %s features", learner$super.learner$id, getTaskNFeats(super.task))
   super.model = train(learner$super.learner, super.task)
 
   message(class(super.model))
@@ -843,3 +844,4 @@ getPseudoData = function(.data, k = 3, prob = 0.1, s = NULL, ...) {
 # - DONE: super learner can also return predicted probabilites
 # - DONE: allow regression as well
 
+# getWeights
