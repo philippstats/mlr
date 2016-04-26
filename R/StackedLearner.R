@@ -310,7 +310,7 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
       predData = pred.data
     }
     sm = .model$learner.model$super.model
-    messagef("Super model '%s' will use %s features for prediction", sm$id, NCOL(predData))
+    messagef("Super model '%s' will use %s features and $s observations for prediction", sm$id, NCOL(predData), NROW(predData))
     messagef("There are %s NA in 'predData'", sum(is.na(predData)))
     pred = predict(sm, newdata = predData)
     if (sm.pt == "prob") {
@@ -475,11 +475,10 @@ stackCV = function(learner, task) {
   }
   #message(getTaskDescription(task))
   #message(na_count(getTaskData(super.task)))
-  messagef("Super learner '%s' will be trained with %s features", learner$super.learner$id, getTaskNFeats(super.task))
+  messagef("Super learner '%s' will be trained with %s features and $s observations", learner$super.learner$id, getTaskNFeats(super.task), getTaskSize(super.task))
   super.model = train(learner$super.learner, super.task)
 
   message(class(super.model))
-  message(paste(">#bls>", length(base.models)))
 
   list(method = "stack.cv", base.models = base.models,
        super.model = super.model, pred.train = pred.train)
@@ -549,7 +548,6 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
     pred.data = pred.data[-broke.idx]
     base.models = base.models[-broke.idx]
   }
-
   # add true target column IN CORRECT ORDER
   tn = getTaskTargetNames(task)
   test.inds = unlist(rin$test.inds)
@@ -626,8 +624,8 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
     weights = weights + bagweight #807
   }
   weights = weights/sum(weights)
+  names(weights) = names(resres)
   
-  message(paste(">#bls>", length(base.models)))
   list(method = "hill.climb", base.models = base.models, super.model = NULL,
        pred.train = pred.data, weights = weights)
 }
@@ -698,14 +696,16 @@ getResponse = function(pred, full.matrix = NULL) {
 makeSuperLearnerTask = function(type, data, target) {
   #na_count <-function (x) sapply(x, function(y) sum(is.na(y)))
   #print(na_count(data))
-  data = data[, colnames(unique(as.matrix(data), MARGIN = 2))] # may not be useful for small data sets with predict.type=response
+  #data = data[, colnames(unique(as.matrix(data), MARGIN = 2))] # may not be useful for small data sets with predict.type=response
   # FIX it for now:
-  data = data[ , colSums(is.na(data)) == 0]
+  idx = colSums(is.na(data)) == 0
+  data = data[ , idx]
+  messagef("Feature '%s' will be removed\n", names(data)[!idx])
   #message((na_count(data)))
   if (type == "classif") {
-    removeConstantFeatures(task = makeClassifTask(data = data, target = target))
+    removeConstantFeatures(task = makeClassifTask(data = data, target = target, fixup.data = "no"))
   } else {
-    removeConstantFeatures(task = makeRegrTask(data = data, target = target))
+    removeConstantFeatures(task = makeRegrTask(data = data, target = target, fixup.data = "no"))
 
   }
 }
