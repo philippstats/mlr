@@ -9,7 +9,8 @@ makeLearnerFromTuneResult = function(tune.res = res) {
   par.names = substr(names(par.list), lrn.length + 2, nchar(names(par.list)))
   names(par.list) = par.names
   setHyperPars(makeLearner(selected.learner, 
-    predict.type = tune.res$learner$predict.type), par.vals = par.list)
+    predict.type = tune.res$learner$predict.type, fix.factors.prediction = TRUE), 
+    par.vals = par.list)
 }
 
 #' Adds new feature(s) to task
