@@ -3,7 +3,7 @@
 #' @description
 #'   Short descrition of boosted Stacking here!
 #' 
-#' @param multiplexer [\code{\link{ModelMultiplexer}}]\cr
+#' @param model.multiplexer [\code{\link{ModelMultiplexer}}]\cr
 #'   The muliplexer learner.
 #' @param predict.type [\code{character(1)}]\cr 
 #'   Classification: \dQuote{response} (= labels) or \dQuote{prob} (= probabilities and labels by selecting the ones with maximal probability).
@@ -20,7 +20,7 @@
 #'   Performance measure.
 #' @param niter [\code{integer}]\cr
 #'   Number of boosting iterations.
-#' @example 
+#' @examples 
 #'  lrns = list(
 #'    #makeLearner("classif.ksvm", kernel = "rbfdot"), # no implm for response and multiclass
 #'    makeLearner("classif.gbm"),
@@ -39,11 +39,10 @@
 #'  r = resample(stb, task = tsk, resampling = cv2)
 #'
 #' @export  
-
-# FIXME: do we need id?
-
+#' 
 makeBoostedStackingLearner = function(model.multiplexer = mm, predict.type = "prob", resampling = cv2, mm.ps = ps, control = ctrl, measures = mmce, niter = 2L) {
-	# input checks
+	# do we need an id?
+  # input checks
 	# INSERT IT HERE
   assertClass(model.multiplexer, "ModelMultiplexer")
   assertChoice(predict.type, choices = c("response", "prob"))
@@ -70,11 +69,11 @@ makeBoostedStackingLearner = function(model.multiplexer = mm, predict.type = "pr
   	predict.type = predict.type)
 
   bsl$fix.factors.prediction = TRUE
-  bsl$mm = model.multiplexer
+  bsl$model.multiplexer = model.multiplexer
   bsl$mm.ps = mm.ps
   bsl$resampling = resampling
   bsl$measures = measures
-  bsl$control = ctrl
+  bsl$control = control
   return(bsl)
 }
 
@@ -82,22 +81,23 @@ makeBoostedStackingLearner = function(model.multiplexer = mm, predict.type = "pr
 trainLearner.BoostedStackingLearner = function(.learner, .task, .subset, ...) {
   # checks
   if (.task$type == "regr") {
-    bpt = unique(extractSubList(.learner$mm$base.learners, "predict.type"))
+    bpt = unique(extractSubList(.learner$model.multiplexer$base.learners, "predict.type"))
     spt = .learner$predict.type
     if (any(c(bpt, spt) == "prob")) 
       stopf("Base learner predict type are '%s' and final predict type is '%s', but both should be 'response' for regression.", bpt, spt)
   }
   # body
-  bms.pt = unique(extractSubList(.learner$mm$base.learner, "predict.type"))
+  bms.pt = unique(extractSubList(.learner$model.multiplexer$base.learner, "predict.type"))
   new.task = subsetTask(.task, subset = .subset)
   niter = .learner$par.vals$niter
   base.models = preds = vector("list", length = .learner$par.vals$niter)
 
   for (i in seq_len(niter)) {
     # 
-    res = tuneParams(learner = .learner$mm, task = new.task, 
+    res = tuneParams(learner = .learner$model.multiplexer, task = new.task, 
       resampling = .learner$resampling, measures = .learner$measures, 
       par.set = .learner$mm.ps, control = .learner$control)
+    bench.score = res$y[1]
     best.lrn = makeLearnerFromTuneResult(res)
     base.models[[i]] = train(best.lrn, new.task)
     preds[[i]] = predict(base.models[[i]], new.task)
@@ -125,7 +125,7 @@ trainLearner.BoostedStackingLearner = function(.learner, .task, .subset, ...) {
 predictLearner.BoostedStackingLearner = function(.learner, .model, .newdata, ...) {
   new.data = .newdata
   sm.pt = .learner$predict.type
-  bms.pt = unique(extractSubList(.learner$mm$base.learner, "predict.type"))
+  bms.pt = unique(extractSubList(.learner$model.multiplexer$base.learner, "predict.type"))
   
   td = getTaskDescription(.model)
   niter = length(.model$learner.model$base.models)
