@@ -90,34 +90,50 @@ trainLearner.BoostedStackingLearner = function(.learner, .task, .subset, ...) {
   bms.pt = unique(extractSubList(.learner$model.multiplexer$base.learner, "predict.type"))
   new.task = subsetTask(.task, subset = .subset)
   niter = .learner$par.vals$niter
-  base.models = preds = vector("list", length = .learner$par.vals$niter)
-
+  base.models = preds = vector("list", length = niter)
+  score = rep(ifelse(.learner$measures$minimize, Inf, -Inf), niter + 1)
+  names(score) = c("init.score", paste("not.set", 1:niter, sep = "."))
   for (i in seq_len(niter)) {
-    # 
+    # Parameter Tuning
     res = tuneParams(learner = .learner$model.multiplexer, task = new.task, 
       resampling = .learner$resampling, measures = .learner$measures, 
       par.set = .learner$mm.ps, control = .learner$control)
-    bench.score = res$y[1]
+    # Stopping criterium
+    score[i+1] = res$y[1]
+    names(score)[i+1] = paste(res$x$selected.learner, i, sep=".")
+    shift = score[i] - score[i+1]
+#    messagef("shift is %s", shift); messagef("shift is <0: %s", shift < 1e-8)
+    if (ifelse(.learner$measures$minimize, shift < 1e-8, shift > 1e-8)) {
+      messagef("Boosting iterations stopped after %s niters", i)
+      to.rm = i:niter
+      print(score)
+      print(to.rm)
+      score = score[-c(1, to.rm + 1)]
+      print(score)
+      base.models[to.rm] = NULL
+      preds[to.rm] = NULL
+      break()
+    }
+    # create learner, train, predict
     best.lrn = makeLearnerFromTuneResult(res)
     base.models[[i]] = train(best.lrn, new.task)
-    preds[[i]] = predict(base.models[[i]], new.task)
-    ##
-    
+    preds[[i]] = resample(best.lrn, new.task, resampling = .learner$resampling, 
+      measures = .learner$measures)
+    # create new task
     if (bms.pt == "prob") {
-      new.feat = getPredictionProbabilities(preds[[i]])
+      new.feat = getPredictionProbabilities(preds[[i]]$pred)
       # FIXME if new.feat is constant, NA then use the second pred
       new.task = makeTaskWithNewFeat(task = new.task, 
-        new.feat = new.feat,
-        feat.name = paste0("feat.", i))
+        new.feat = new.feat, feat.name = paste0("feat.", i))
     } else {
-      new.feat = getPredictionResponse(preds[[i]])
+      new.feat = getPredictionResponse(preds[[i]]$pred)
       # FIXME if new.feat is constant, NA then use the second pred
       new.task = makeTaskWithNewFeat(task = new.task, 
-          new.feat = new.feat, feat.name = paste0("feat.", i))
+        new.feat = new.feat, feat.name = paste0("feat.", i))
       }
   }
   # FIXME pred.train returns acc to bms.pt...is that correct?
-  list(base.models = base.models, final.task = new.task, pred.train = preds[[niter]])
+  list(base.models = base.models, score = score, final.task = new.task, pred.train = preds[[length(preds)]])
 }
 
 #predictLearner.BoostedStackingModel = function(.learner, .model, .newdata, ...) {
