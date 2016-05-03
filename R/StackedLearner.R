@@ -310,7 +310,7 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
       predData = pred.data
     }
     sm = .model$learner.model$super.model
-    messagef("Super model '%s' will use %s features and $s observations for prediction", sm$id, NCOL(predData), NROW(predData))
+    messagef("Super model '%s' will use %s features and '%s' observations for prediction", sm$id, NCOL(predData), NROW(predData))
     messagef("There are %s NA in 'predData'", sum(is.na(predData)))
     pred = predict(sm, newdata = predData)
     if (sm.pt == "prob") {
