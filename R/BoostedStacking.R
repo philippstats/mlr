@@ -93,31 +93,35 @@ trainLearner.BoostedStackingLearner = function(.learner, .task, .subset, ...) {
   base.models = preds = vector("list", length = niter)
   score = rep(ifelse(.learner$measures$minimize, Inf, -Inf), niter + 1)
   names(score) = c("init.score", paste("not.set", 1:niter, sep = "."))
+  
   for (i in seq_len(niter)) {
+    messagef("iter %s time: %s", i, Sys.time())
     # Parameter Tuning
     res = tuneParams(learner = .learner$model.multiplexer, task = new.task, 
       resampling = .learner$resampling, measures = .learner$measures, 
       par.set = .learner$mm.ps, control = .learner$control)
     # Stopping criterium
     score[i+1] = res$y[1]
-    names(score)[i+1] = paste(res$x$selected.learner, i, sep=".")
+    names(score)[i+1] = paste(res$x$selected.learner, i, sep = ".")
     shift = score[i] - score[i+1]
 #    messagef("shift is %s", shift); messagef("shift is <0: %s", shift < 1e-8)
     if (ifelse(.learner$measures$minimize, shift < 1e-8, shift > 1e-8)) {
       messagef("Boosting iterations stopped after %s niters", i)
       to.rm = i:niter
-      print(score)
-      print(to.rm)
-      score = score[-c(1, to.rm + 1)]
-      print(score)
+      #print(score)
+      #print(to.rm)
+      score = score[-c(to.rm + 1)]
+      #print(score)
       base.models[to.rm] = NULL
       preds[to.rm] = NULL
       break()
     }
-    # create learner, train, predict
-    best.lrn = makeLearnerFromTuneResult(res)
-    base.models[[i]] = train(best.lrn, new.task)
-    preds[[i]] = resample(best.lrn, new.task, resampling = .learner$resampling, 
+    # create learner, model, prediction
+    best.lrn = makeXBestLearnersFromMMTuneResult(tune.result = res, 
+      base.learners = .learner$model.multiplexer$base.learners, 
+      x.best = 1, measure = .learner$measures) # FIXME x.best
+    base.models[[i]] = train(best.lrn[[1]], new.task)
+    preds[[i]] = resample(best.lrn[[1]], new.task, resampling = .learner$resampling, 
       measures = .learner$measures)
     # create new task
     if (bms.pt == "prob") {
@@ -133,7 +137,7 @@ trainLearner.BoostedStackingLearner = function(.learner, .task, .subset, ...) {
       }
   }
   # FIXME pred.train returns acc to bms.pt...is that correct?
-  list(base.models = base.models, score = score, final.task = new.task, pred.train = preds[[length(preds)]])
+  list(base.models = base.models, score = score[-1], final.task = new.task, pred.train = preds[[length(preds)]])
 }
 
 #predictLearner.BoostedStackingModel = function(.learner, .model, .newdata, ...) {
