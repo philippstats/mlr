@@ -5,7 +5,7 @@
 \title{Merges small levels of factors into new level.}
 \usage{
 mergeSmallFactorLevels(task, cols = NULL, min.perc = 0.01,
-  new.level = ".merged")
+  new.level = ".merged", show.info = getMlrOption("show.info"))
 }
 \arguments{
 \item{task}{[\code{\link{Task}}]\cr
@@ -24,6 +24,10 @@ Default is 0.01.}
 \item{new.level}{[\code{character(1)}]\cr
 New name of merged level.
 Default is \dQuote{.merged}}
+
+\item{show.info}{[\code{logical(1)}]\cr
+Print verbose output on console?
+Default is set via \code{\link{configureMlr}}.}
 }
 \value{
 \code{Task}, where merged levels are combined into a new level of name \code{new.level}.

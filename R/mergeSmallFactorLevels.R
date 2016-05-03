@@ -15,10 +15,12 @@
 #' @param new.level [\code{character(1)}]\cr
 #'   New name of merged level.
 #'   Default is \dQuote{.merged}
+#' @template arg_showinfo
 #' @return \code{Task}, where merged levels are combined into a new level of name \code{new.level}.
 #' @family eda_and_preprocess
 #' @export
-mergeSmallFactorLevels = function(task, cols = NULL, min.perc = 0.01, new.level = ".merged") {
+mergeSmallFactorLevels = function(task, cols = NULL, min.perc = 0.01, new.level = ".merged", 
+  show.info = getMlrOption("show.info")) {
   assertClass(task, "Task")
   assertNumber(min.perc, lower = 0, upper = 1)
   assertString(new.level)
@@ -40,6 +42,9 @@ mergeSmallFactorLevels = function(task, cols = NULL, min.perc = 0.01, new.level 
     if (length(j) > 0L) {
       levels(x)[levels(x) %in% names(j)] = new.level
       data[[cn]] = x
+      if (show.info == TRUE) {
+        messagef("Merging levels %s in feature '%s'.", paste(names(j), collapse = ", "), cn)
+      }
     }
   }
   changeData(task, data = data)
