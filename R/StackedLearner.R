@@ -241,7 +241,9 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
   } else {
     pred.data = .newdata
   }
-
+  #
+  # average/hill.climb
+  #
   if (.learner$method %in% c("average", "hill.climb")) {
     if (.learner$method == "hill.climb") {
       model.weight = .model$learner.model$weights
@@ -253,6 +255,7 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
       #FIXME Alternatively: all models can be kept. and here is the error handling done
       model.weight = rep(1/length(pred.data), length(pred.data))
     }
+    # --- bms.pt == "prob" ---
     if (bms.pt == "prob") {
       # if base learner predictions are probabilities for classification
       for (i in 1:length(pred.data))
@@ -265,7 +268,8 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
         # if super learner predictions should be responses
         return(factor(colnames(pred.data)[max.col(pred.data)], td$class.levels))
       }
-    } else { # bms.pt == "response"
+    # --- bms.pt == "response" ---
+    } else { 
       pred.data = as.data.frame(pred.data)
       # if base learner predictions are responses
       if (type == "classif" || type == "multiclassif") {
@@ -289,6 +293,9 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
         return(prob)
       }
     }
+  # 
+  # compress
+  #
   } else if (.learner$method == "compress") {
     sm = .model$learner.model$super.model
 
@@ -299,7 +306,10 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
     } else {
       return(pred$data$response)
     }
-  } else { #stack.nocv stack.cv
+  #
+  # stack.nocv stack.cv
+  #
+  } else { 
     pred.data = as.data.frame(pred.data)
 
     if (use.feat) {
