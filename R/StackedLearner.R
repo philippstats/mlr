@@ -717,14 +717,16 @@ makeSuperLearnerTask = function(type, data, target) {
   #print(na_count(data))
   #data = data[, colnames(unique(as.matrix(data), MARGIN = 2))] # may not be useful for small data sets with predict.type=response
   # FIX it for now:
-  idx = colSums(is.na(data)) == 0
-  data = data[ , idx]
-  messagef("Feature '%s' will be removed\n", names(data)[!idx])
+  keep.idx = colSums(is.na(data)) == 0
+  data = data[, idx, drop = FALSE]
+  messagef("Feature '%s' will be removed\n", names(data)[!keep.idx])
   #message((na_count(data)))
   if (type == "classif") {
-    removeConstantFeatures(task = makeClassifTask(data = data, target = target, fixup.data = "no"))
+    removeConstantFeatures(task = makeClassifTask(id = "level 1 data", 
+      data = data, target = target, fixup.data = "no"))
   } else {
-    removeConstantFeatures(task = makeRegrTask(data = data, target = target, fixup.data = "no"))
+    removeConstantFeatures(task = makeRegrTask(id = "level 1 data", 
+      data = data, target = target, fixup.data = "no"))
 
   }
 }
@@ -763,16 +765,14 @@ rowiseRatio = function(pred.data, levels, model.weight = NULL) {
 
 # getWeights
 
-
 doTrainPredict = function(bls, task) {
     model = train(bls, task)
     pred = predict(model, task = task)
     list(base.models = model, pred = pred)
 }
 
-
 doResampleTrain = function(bls, task, rin) {
-  r = resample(bls, task, rin, show.info = FALSE) #, extract = function(x) class(x))
+  r = resample(bls, task, rin, show.info = FALSE)
   model = train(bls, task)
   list(resres = r, base.models = model)
 }
