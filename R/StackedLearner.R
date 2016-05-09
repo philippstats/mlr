@@ -344,16 +344,24 @@ setPredictType.StackedLearner = function(learner, predict.type) {
 
 # super simple averaging of base-learner predictions without weights. we should beat this
 averageBaseLearners = function(learner, task) {
+    browser()
   bls = learner$base.learners
-  base.models = pred.data = vector("list", length(bls))
-  for (i in seq_along(bls)) {
-    bl = bls[[i]]
-    model = train(bl, task) # FIXME: err is failuremodel
-    #message(paste(">>>", bl$id, paste(class(model))))
-    base.models[[i]] = model
-    pred = predict(model, task = task)
-    pred.data[[i]] = getResponse(pred, full.matrix = TRUE)
-  }
+  #base.models = pred.data = vector("list", length(bls))
+  # parallelMap
+  parallelLibrary("mlr", master = FALSE, level = "mlr.stack", show.info = T)
+  exportMlrOptions(level = "mlr.stack")
+  results = parallelMap(doTrainPredict, bls, more.args = list(task), impute.error = function(x) x)
+  base.models = lapply(results, function(x) x[["base.models"]])
+  pred.data = lapply(results, function(x) try(getResponse(x[["pred"]], full.matrix = TRUE)))
+  #for (i in seq_along(bls)) {
+  #  bl = bls[[i]]
+  #  model = train(bl, task) # FIXME: err is failuremodel
+  #  #message(paste(">>>", bl$id, paste(class(model))))
+  #  base.models[[i]] = model
+  #  pred = predict(model, task = task)
+  #  pred.data[[i]] = getResponse(pred, full.matrix = TRUE)
+  #}
+  names(base.models) = names(bls)
   names(pred.data) = names(bls)
 
   #FIXME: I don't know if it is the nicest way to remove bls 
@@ -363,8 +371,8 @@ averageBaseLearners = function(learner, task) {
 
   if (length(broke.idx) > 0) {
     messagef("Base Learner %s is broken and will be removed\n", names(bls)[broke.idx])
-    base.models = base.models[-broke.idx]
-    pred.data = pred.data[-broke.idx]
+    base.models = base.models[-broke.idx, drop = FALSE]
+    pred.data = pred.data[-broke.idx, drop = FALSE]
   }
 
   list(method = "average", base.models = base.models, super.model = NULL,
@@ -378,14 +386,22 @@ stackNoCV = function(learner, task) {
     ifelse(length(td$class.levels) == 2L, "classif", "multiclassif"))
   bls = learner$base.learners
   use.feat = learner$use.feat
-  base.models = pred.data = vector("list", length(bls))
-  for (i in seq_along(bls)) {
-    bl = bls[[i]]
-    model = train(bl, task)
-    base.models[[i]] = model
-    pred = predict(model, task = task)
-    pred.data[[i]] = getResponse(pred, full.matrix = FALSE)
-  }
+  #base.models = pred.data = vector("list", length(bls))
+  # parallelMap
+  parallelLibrary("mlr", master = FALSE, level = "mlr.stack", show.info = T)
+  exportMlrOptions(level = "mlr.stack")
+  results = parallelMap(doTrainPredict, bls, more.args = list(task), impute.error = function(x) x)
+  base.models = lapply(results, function(x) x[["base.models"]])
+  pred.data = lapply(results, function(x) try(getResponse(x[["pred"]], full.matrix = FALSE)))
+  
+  #for (i in seq_along(bls)) {
+  #  bl = bls[[i]]
+  #  model = train(bl, task)
+  #  base.models[[i]] = model
+  #  pred = predict(model, task = task)
+  #  pred.data[[i]] = getResponse(pred, full.matrix = FALSE)
+  #}
+  names(base.models) = names(bls)
   names(pred.data) = names(bls)
 
   # Remove FailureModels which would occur problems later
@@ -427,22 +443,33 @@ stackNoCV = function(learner, task) {
 
 # stacking where we crossval the training set with the base learners, then super-learn on that
 stackCV = function(learner, task) {
+browser()
+
   td = getTaskDescription(task)
   type = ifelse(td$type == "regr", "regr",
     ifelse(length(td$class.levels) == 2L, "classif", "multiclassif"))
   bls = learner$base.learners
   use.feat = learner$use.feat
   # cross-validate all base learners and get a prob vector for the whole dataset for each learner
-  base.models = pred.data = vector("list", length(bls))
+  #base.models = pred.data = vector("list", length(bls))
   rin = makeResampleInstance(learner$resampling, task = task)
-  for (i in seq_along(bls)) {
-    bl = bls[[i]]
-    r = resample(bl, task, rin, show.info = FALSE) #, extract = function(x) class(x))
-    pred.data[[i]] = getResponse(r$pred, full.matrix = FALSE)
-    # also fit all base models again on the complete original data set
-    base.models[[i]] = train(bl, task)
-  }
+  # parallelMap
+  parallelLibrary("mlr", master = FALSE, level = "mlr.stack", show.info = T)
+  exportMlrOptions(level = "mlr.stack")
+  results = parallelMap(doResampleTrain, bls, more.args = list(task, rin), impute.error = function(x) x)
+
+    #for (i in seq_along(bls)) {
+  #  bl = bls[[i]]
+  #  r = resample(bl, task, rin, show.info = FALSE) #, extract = function(x) class(x))
+  #  pred.data[[i]] = getResponse(r$pred, full.matrix = FALSE)
+  #  # also fit all base models again on the complete original data set
+  #  base.models[[i]] = train(bl, task)
+  #}
+  base.models = lapply(results, function(x) x[["base.models"]])
+  pred.data = lapply(results, function(x) try(getResponse(x[["resres"]]$pred, full.matrix = FALSE)))
+  
   names(pred.data) = names(bls)
+  names(base.models) = names(bls)
 
   # Remove FailureModels which would occur problems later
   broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
@@ -485,7 +512,7 @@ stackCV = function(learner, task) {
   }
   #message(getTaskDescription(task))
   #message(na_count(getTaskData(super.task)))
-  messagef("Super learner '%s' will be trained with %s features and $s observations", learner$super.learner$id, getTaskNFeats(super.task), getTaskSize(super.task))
+  messagef("Super learner '%s' will be trained with %s features and %s observations", learner$super.learner$id, getTaskNFeats(super.task), getTaskSize(super.task))
   super.model = train(learner$super.learner, super.task)
 
   message(class(super.model))
@@ -529,34 +556,54 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
       stop("Hill climbing algorithm only takes probability predict type for classification.")
   }
   # cross-validate all base learners and get a prob vector for the whole dataset for each learner
-  base.models = resres = pred.data = vector("list", length(bls)) #new
+  #base.models = resres = 
+  pred.data = vector("list", length(bls)) #new
   rin = makeResampleInstance(learner$resampling, task = task)
+  # parallelMap
+  parallelLibrary("mlr", master = FALSE, level = "mlr.stack", show.info = T)
+  exportMlrOptions(level = "mlr.stack")
+  results = parallelMap(doResampleTrain, bls, more.args = list(task, rin), impute.error = function(x) x)
+  
+  resres = lapply(results, function(x) x[["resres"]])
+  base.models = lapply(results, function(x) x[["base.models"]])
+  #pred.data = lapply(results, function(x) try(getResponse(x[["resres"]]$pred, full.matrix = T)))
+  # as before:
   for (i in seq_along(bls)) {
-    bl = bls[[i]]
-    resres[[i]] = r = resample(bl, task, rin, show.info = FALSE) #new
+    r = resres[[i]]
     if (type == "regr") {
       pred.data[[i]] = matrix(getResponse(r$pred, full.matrix = TRUE), ncol = 1)
     } else {
       pred.data[[i]] = getResponse(r$pred, full.matrix = TRUE)
       colnames(pred.data[[i]]) = task$task.desc$class.levels
     }
-    # also fit all base models again on the complete original data set
-    base.models[[i]] = train(bl, task) #FIXME
-
   }
-  names(pred.data) = names(bls)
-  names(resres) = names(bls) #new
+
+  #for (i in seq_along(bls)) {
+  #  bl = bls[[i]]
+  #  resres[[i]] = r = resample(bl, task, rin, show.info = FALSE) #new
+  #  if (type == "regr") {
+  #    pred.data[[i]] = matrix(getResponse(r$pred, full.matrix = TRUE), ncol = 1)
+  #  } else {
+  #    pred.data[[i]] = getResponse(r$pred, full.matrix = TRUE)
+  #    colnames(pred.data[[i]]) = task$task.desc$class.levels
+  #  }
+  #  # also fit all base models again on the complete original data set
+  #  base.models[[i]] = train(bl, task) #FIXME
+  #
+  #}
+  names(resres) = names(bls)
+  names(base.models) = names(bls) #new
 
   # Remove FailureModels which would occur problems later
   broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
-  broke.idx.pd = which(unlist(lapply(pred.data, function(x) any(is.na(x)))))
+  broke.idx.pd = which(unlist(lapply(pred.data, function(x) anyNA(x))))
   broke.idx = unique(broke.idx.bm, broke.idx.pd)
 
   if (length(broke.idx) > 0) {
     messagef("Base Learner %s is broken and will be removed\n", names(bls)[broke.idx])
-    resres = resres[-broke.idx]
-    pred.data = pred.data[-broke.idx]
-    base.models = base.models[-broke.idx]
+    resres = resres[-broke.idx, drop = FALSE]
+    pred.data = pred.data[-broke.idx, drop = FALSE]
+    base.models = base.models[-broke.idx, drop = FALSE]
   }
   # add true target column IN CORRECT ORDER
   tn = getTaskTargetNames(task)
@@ -855,3 +902,17 @@ getPseudoData = function(.data, k = 3, prob = 0.1, s = NULL, ...) {
 # - DONE: allow regression as well
 
 # getWeights
+
+
+doTrainPredict = function(bls, task) {
+    model = train(bls, task)
+    pred = predict(model, task = task)
+    list(base.models = model, pred = pred)
+}
+
+
+doResampleTrain = function(bls, task, rin) {
+  r = resample(bls, task, rin, show.info = FALSE) #, extract = function(x) class(x))
+  model = train(bls, task)
+  list(resres = r, base.models = model)
+}
