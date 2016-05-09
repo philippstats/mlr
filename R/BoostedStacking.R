@@ -100,6 +100,7 @@ trainLearner.BoostedStackingLearner = function(.learner, .task, .subset, ...) {
     res = tuneParams(learner = .learner$model.multiplexer, task = new.task, 
       resampling = .learner$resampling, measures = .learner$measures, 
       par.set = .learner$mm.ps, control = .learner$control)
+    # IDEA: take best from every fold (i.e. anti-correlated/performs best on differnt input spaces/ bagging-like)
     # Stopping criterium
     score[i+1] = res$y[1]
     names(score)[i+1] = paste(res$x$selected.learner, i, sep = ".")
