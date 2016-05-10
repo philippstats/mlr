@@ -44,7 +44,8 @@ test_that("Stacking works", {
       for (use.feat in ufs) {
         for (sm.pt in pts) {
           for (bms.pt in pts) {
-            # cat(td$type, td$id, method, use.feat, sm.pt, bms.pt, fill = TRUE)
+            cat(td$type, td$id, method, use.feat, sm.pt, bms.pt, fill = TRUE)
+            #messagef(method, base, super, bms.pt, sm.pt, use.feat)
             checkStack(task, method, base, super, bms.pt, sm.pt, use.feat)
           }
         }
@@ -94,23 +95,3 @@ test_that("Parameters for hill climb works", {
 
 })
 
-test_that("Parameters for compress model", {
-  tsk = binaryclass.task
-  base = c("classif.rpart", "classif.lda", "classif.svm")
-  lrns = lapply(base, makeLearner)
-  lrns = lapply(lrns, setPredictType, "prob")
-  m = makeStackedLearner(base.learners = lrns, predict.type = "prob", method = "compress",
-                         parset = list(k = 5, prob = 0.3))
-  tmp = train(m, tsk)
-  res = predict(tmp, tsk)
-
-
-  tsk = regr.task
-  base = c("regr.rpart", "regr.svm")
-  lrns = lapply(base, makeLearner)
-  lrns = lapply(lrns, setPredictType, "response")
-  m = makeStackedLearner(base.learners = lrns, predict.type = "response", method = "compress",
-                         parset = list(k = 5, prob = 0.3))
-  tmp = train(m, tsk)
-  res = predict(tmp, tsk)
-})
