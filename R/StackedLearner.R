@@ -166,7 +166,7 @@ makeStackedLearner = function(base.learners, super.learner = NULL, predict.type 
 #' @details None.
 #'
 #' @export
-getStackedBaseLearnerPredictions = function(model, newdata = NULL) {
+getStackedBaseLearnerPredictions = function(model, newdata = NULL, type = c("pred.data", "pred")) {
   # get base learner and predict type
   #bms = model$learner.model$base.models
   #method = model$learner.model$method
@@ -179,10 +179,10 @@ getStackedBaseLearnerPredictions = function(model, newdata = NULL) {
     method = model$learner.model$method
     # if (model == "stack.cv") warning("Crossvalidated predictions for new data is not possible for this method.")
     # predict prob vectors with each base model
-    pred.data = vector("list", length(bms))
+    pred = pred.data = vector("list", length(bms))
     for (i in seq_along(bms)) {
-      pred = predict(bms[[i]], newdata = newdata)
-      pred.data[[i]] = getResponse(pred, full.matrix = ifelse(method %in% c("average","hill.climb"), TRUE, FALSE))
+      pred[[i]] = predict(bms[[i]], newdata = newdata)
+      pred.data[[i]] = getResponse(pred[[i]], full.matrix = ifelse(method %in% c("average","hill.climb"), TRUE, FALSE))
     }
 
     names(pred.data) = sapply(bms, function(X) X$learner$id) #names(.learner$base.learners)
@@ -192,14 +192,15 @@ getStackedBaseLearnerPredictions = function(model, newdata = NULL) {
     if (length(broke.idx.pd) > 0) {
       messagef("Base Learner %s is broken in 'getStackedBaseLearnerPredictions' and will be removed\n", names(bls)[broke.idx])
       pred.data = pred.data[-broke.idx.pd]
+      pred = pred[-broke.idx.pd]
     }
   }
-  return(pred.data)
+  ifelse(type == "pred", return(pred), return(pred.data))
 }
 
 checkIfNullOrAnyNA = function(x) {
   if (is.null(x)) return(TRUE)
-  if (any(is.na(x))) return(TRUE)
+  if (anyNA(x)) return(TRUE)
   else FALSE
 }
 
@@ -320,7 +321,7 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
       predData = pred.data
     }
     sm = .model$learner.model$super.model
-    messagef("Super model '%s' will use %s features and '%s' observations for prediction", sm$id, NCOL(predData), NROW(predData))
+    messagef("Super model '%s' will use %s features and %s observations for prediction", sm$id, NCOL(predData), NROW(predData))
     messagef("There are %s NA in 'predData'", sum(is.na(predData)))
     pred = predict(sm, newdata = predData)
     if (sm.pt == "prob") {
@@ -344,11 +345,10 @@ setPredictType.StackedLearner = function(learner, predict.type) {
 
 # super simple averaging of base-learner predictions without weights. we should beat this
 averageBaseLearners = function(learner, task) {
-    browser()
   bls = learner$base.learners
   #base.models = pred.data = vector("list", length(bls))
   # parallelMap
-  parallelLibrary("mlr", master = FALSE, level = "mlr.stack", show.info = T)
+  parallelLibrary("mlr", master = FALSE, level = "mlr.stack", show.info = FALSE)
   exportMlrOptions(level = "mlr.stack")
   results = parallelMap(doTrainPredict, bls, more.args = list(task), impute.error = function(x) x)
   base.models = lapply(results, function(x) x[["base.models"]])
@@ -388,7 +388,7 @@ stackNoCV = function(learner, task) {
   use.feat = learner$use.feat
   #base.models = pred.data = vector("list", length(bls))
   # parallelMap
-  parallelLibrary("mlr", master = FALSE, level = "mlr.stack", show.info = T)
+  parallelLibrary("mlr", master = FALSE, level = "mlr.stack", show.info = FALSE)
   exportMlrOptions(level = "mlr.stack")
   results = parallelMap(doTrainPredict, bls, more.args = list(task), impute.error = function(x) x)
   base.models = lapply(results, function(x) x[["base.models"]])
@@ -435,7 +435,7 @@ stackNoCV = function(learner, task) {
   } else {
     super.task = makeSuperLearnerTask(learner$super.learner$type, data = pred.data, target = td$target)
   }
-  messagef("Super learner '%s' will be trained with %s features", learner$super.learner$id, getTaskNFeats(super.task))
+  messagef("Super learner '%s' will be trained with %s features and %s observations", learner$super.learner$id, getTaskNFeats(super.task), getTaskSize(super.task))
   super.model = train(learner$super.learner, super.task)
   list(method = "stack.no.cv", base.models = base.models,
        super.model = super.model, pred.train = pred.train)
@@ -443,7 +443,6 @@ stackNoCV = function(learner, task) {
 
 # stacking where we crossval the training set with the base learners, then super-learn on that
 stackCV = function(learner, task) {
-browser()
 
   td = getTaskDescription(task)
   type = ifelse(td$type == "regr", "regr",
@@ -454,7 +453,7 @@ browser()
   #base.models = pred.data = vector("list", length(bls))
   rin = makeResampleInstance(learner$resampling, task = task)
   # parallelMap
-  parallelLibrary("mlr", master = FALSE, level = "mlr.stack", show.info = T)
+  parallelLibrary("mlr", master = FALSE, level = "mlr.stack", show.info = FALSE)
   exportMlrOptions(level = "mlr.stack")
   results = parallelMap(doResampleTrain, bls, more.args = list(task, rin), impute.error = function(x) x)
 
@@ -515,8 +514,6 @@ browser()
   messagef("Super learner '%s' will be trained with %s features and %s observations", learner$super.learner$id, getTaskNFeats(super.task), getTaskSize(super.task))
   super.model = train(learner$super.learner, super.task)
 
-  message(class(super.model))
-
   list(method = "stack.cv", base.models = base.models,
        super.model = super.model, pred.train = pred.train)
 }
@@ -560,7 +557,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
   pred.data = vector("list", length(bls)) #new
   rin = makeResampleInstance(learner$resampling, task = task)
   # parallelMap
-  parallelLibrary("mlr", master = FALSE, level = "mlr.stack", show.info = T)
+  parallelLibrary("mlr", master = FALSE, level = "mlr.stack", show.info = FALSE)
   exportMlrOptions(level = "mlr.stack")
   results = parallelMap(doResampleTrain, bls, more.args = list(task, rin), impute.error = function(x) x)
   
@@ -718,7 +715,7 @@ makeSuperLearnerTask = function(type, data, target) {
   #data = data[, colnames(unique(as.matrix(data), MARGIN = 2))] # may not be useful for small data sets with predict.type=response
   # FIX it for now:
   keep.idx = colSums(is.na(data)) == 0
-  data = data[, idx, drop = FALSE]
+  data = data[, keep.idx, drop = FALSE]
   messagef("Feature '%s' will be removed\n", names(data)[!keep.idx])
   #message((na_count(data)))
   if (type == "classif") {
