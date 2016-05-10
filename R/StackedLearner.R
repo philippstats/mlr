@@ -166,7 +166,8 @@ makeStackedLearner = function(base.learners, super.learner = NULL, predict.type 
 #' @details None.
 #'
 #' @export
-getStackedBaseLearnerPredictions = function(model, newdata = NULL, type = c("pred.data", "pred")) {
+getStackedBaseLearnerPredictions = function(model, newdata = NULL, type = "pred.data") {
+  assertChoice(type, choices = c("pred.data", "pred"))
   # get base learner and predict type
   #bms = model$learner.model$base.models
   #method = model$learner.model$method
@@ -191,11 +192,15 @@ getStackedBaseLearnerPredictions = function(model, newdata = NULL, type = c("pre
     broke.idx.pd = which(unlist(lapply(pred.data, function(x) checkIfNullOrAnyNA(x))))
     if (length(broke.idx.pd) > 0) {
       messagef("Base Learner %s is broken in 'getStackedBaseLearnerPredictions' and will be removed\n", names(bls)[broke.idx])
-      pred.data = pred.data[-broke.idx.pd]
-      pred = pred[-broke.idx.pd]
+      pred.data = pred.data[-broke.idx.pd, drop = FALSE]
+      pred = pred[-broke.idx.pd, drop = FALSE]
     }
   }
-  ifelse(type == "pred", return(pred), return(pred.data))
+  if (type == "pred") {
+    return(pred)
+  } else {
+    return(pred.data)
+  }
 }
 
 checkIfNullOrAnyNA = function(x) {
