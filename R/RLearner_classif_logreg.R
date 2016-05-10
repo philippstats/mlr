@@ -24,7 +24,7 @@ predictLearner.classif.logreg = function(.learner, .model, .newdata, ...) {
   if (.learner$predict.type == "prob") {
     propVectorToMatrix(x, levs)
   } else {
-    levs = .model$task.desc$class.levels
+    #levs = .model$task.desc$class.levels
     p = as.factor(ifelse(x > 0.5, levs[2L], levs[1L]))
     unname(p)
   }
