@@ -36,9 +36,9 @@ test_that("Error handling if learner crashs (classif)", {
       bls = lapply(bls, setPredictType, bpt)
       slr = makeLearner("classif.logreg")
       stc = makeStackedLearner(bls, slr, predict.type = spt, method = "stack.cv")
-      r = resample(stc, sp.task, cv2, extract = function(x) x$learner.model$super.model$learner.model)
+      r = resample(stc, sp.task, cv2, extract = function(x) x$learner.model)
       expect_that(r$aggr, is_a("numeric"))
-      expect_that(r, is_a("ResampleResult"))
+      expect_that(r, is_a("ResampleResult")) 
     }
   }
   
@@ -50,8 +50,8 @@ test_that("Error handling if learner crashs (classif)", {
       stc = makeStackedLearner(bls, predict.type = spt, method = "hill.climb",
         parset = list(bagtime = bt))
       r = resample(stc, sp.task, cv2)
-      expect_that(r$aggr, is_a("numeric"))
-      expect_that(r, is_a("ResampleResult"))
+      expect_that(r$aggr, is_a("numeric")) 
+      expect_that(r, is_a("ResampleResult")) 
     }
   }
 })
