@@ -4,7 +4,7 @@
 \alias{getStackedBaseLearnerPredictions}
 \title{Returns the predictions for each base learner.}
 \usage{
-getStackedBaseLearnerPredictions(model, newdata = NULL)
+getStackedBaseLearnerPredictions(model, newdata = NULL, type = "pred.data")
 }
 \arguments{
 \item{model}{[\code{WrappedModel}]\cr Wrapped model, result of train.}
