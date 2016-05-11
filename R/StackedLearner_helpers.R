@@ -74,3 +74,11 @@ doResampleTrain = function(bls, task, rin) {
   model = train(bls, task)
   list(resres = r, base.models = model)
 }
+
+
+
+checkIfNullOrAnyNA = function(x) {
+  if (is.null(x)) return(TRUE)
+  if (any(is.na(x))) return(TRUE)
+  else FALSE
+}
