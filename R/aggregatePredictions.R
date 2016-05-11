@@ -7,6 +7,11 @@
 #' @export
 
 aggregatePredictions = function(pred.list, spt = NULL) {
+  # return pred if list only contains one pred
+  if (length(pred.list) == 1) {
+    messagef("'pred.list' only contains one prediction and returns that one unlisted. Argument 'spt' will not be applied.")
+    return(pred.list[[1]])
+  }
   # Check if "equal"
   x = lapply(pred.list, function(x) getTaskDescription(x))
   task.unequal = unlist(lapply(2:length(x), function(i) !all.equal(x[[1]], x[[i]])))
@@ -78,7 +83,12 @@ aggregatePredictions = function(pred.list, spt = NULL) {
 #'  Vector names must be set to the model names.
 #' @export
 
-expandPredList = function(pred.list, frequency) {
+expandPredList = function(pred.list, freq) {
+  assertClass(pred.list, "list")
+  assertClass(freq, "numeric")
+  only.preds = unique(unlist(lapply(pred.list, function(x) any(class(x) == "Prediction"))))
+  if (!only.preds) stopf("List elements in 'pred.list' are not all of class 'Prediction'")
+  
   # remove 0s
   keep = names(which(freq > 0))
   freq1 = freq[keep]
