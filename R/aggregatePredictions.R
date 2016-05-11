@@ -31,7 +31,7 @@ aggregatePredictions = function(pred.list, spt = NULL) {
   if (is.null(spt)) spt = pt
   
   assertChoice(spt, choices = c("prob", "response"))
-  ti = NA
+  ti = NA_real_
   pred.length = length(pred.list) 
   
   # Reduce results
@@ -65,4 +65,37 @@ aggregatePredictions = function(pred.list, spt = NULL) {
     y = Reduce("+", preds)/pred.length
   }
   return(makePrediction(task.desc = td, rn, id = id, truth = tr, predict.type = spt, predict.threshold = NULL, y, time = ti))
+}
+
+# FIXME: clean up naming
+
+#' Expand Predictions according to frequency argument
+#' 
+#' @param pred.list [\code{list} of \code{Predictions}]\cr
+#'  List of Predictions which should be expanded. 
+#' @param frequency [\code{named vector}]\cr
+#'  Named vector containing the frequency of the chosen predictions. 
+#'  Vector names must be set to the model names.
+#' @export
+
+expandPredList = function(pred.list, frequency) {
+  # remove 0s
+  keep = names(which(freq > 0))
+  freq1 = freq[keep]
+  pred.list1 = pred.list[keep]
+  # create grid for loop
+  grid = data.frame(model = names(freq1), freq1, row.names = NULL)
+  expand_ = data.frame(model = rep(grid$model, grid$freq1)) %>% as.matrix %>% as.vector()
+  expand = as.character(rep(grid$model, grid$freq1)) 
+  pred.list2 = vector("list", length(expand))
+  names(pred.list2) = paste(expand, 1:length(expand), sep = "_")
+  
+  for (i in seq_along(expand)) {
+    #pred.list[i] %>% print 
+    use = expand[i]
+    #messagef("This is nr %s, %s", i, use)
+    pred.list2[i] = pred.list1[use] 
+    #message("---------------------------------------------------")
+  }
+ pred.list2
 }
