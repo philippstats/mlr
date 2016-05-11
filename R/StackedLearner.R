@@ -9,7 +9,8 @@
 #'   \item{\code{stack.nocv}}{Fits the super learner, where in-sample predictions of the base learners are used.}
 #'   \item{\code{stack.cv}}{Fits the super learner, where the base learner predictions are computed
 #'   by crossvalidated predictions (the resampling strategy can be set via the \code{resampling} argument).}
-#'   \item{\code{hill.climb}}{Select a subset of base learner predictions by hill climbing algorithm.}
+#'   \item{\code{hill.climb0}}{Select a subset of base learner predictions by hill climbing algorithm.}
+#'   \item{\code{hill.climb2}}{Select a subset of base learner predictions by hill climbing algorithm. (new implementation)}
 #'   \item{\code{compress}}{Train a neural network to compress the model from a collection of base learners.}
 #'  }
 #'
@@ -38,8 +39,10 @@
 #'   \dQuote{average} for averaging the predictions of the base learners,
 #'   \dQuote{stack.nocv} for building a super learner using the predictions of the base learners,
 #'   \dQuote{stack.cv} for building a super learner using crossvalidated predictions of the base learners.
-#'   \dQuote{hill.climb} for averaging the predictions of the base learners, with the weights learned from
+#'   \dQuote{hill.climb0} for averaging the predictions of the base learners, with the weights learned from
 #'   hill climbing algorithm and
+#'   \dQuote{hill.climb2} (new implementation) for averaging the predictions of the base learners, with the weights learned from
+#'   hill climbing algorithm and 
 #'   \dQuote{compress} for compressing the model to mimic the predictions of a collection of base learners
 #'   while speeding up the predictions and reducing the size of the model.
 #'   Default is \dQuote{stack.nocv},
@@ -67,13 +70,14 @@
 #'    \item{s}{the standard deviation of each numerical feature}
 #' }
 #' @examples
+#' \dontrun{
 #'   # Classification
 #'   data(iris)
 #'   tsk = makeClassifTask(data = iris, target = "Species")
 #'   base = c("classif.rpart", "classif.lda", "classif.svm")
 #'   lrns = lapply(base, makeLearner)
 #'   lrns = lapply(lrns, setPredictType, "prob")
-#'   m = makeStackedLearner(base.learners = lrns, predict.type = "prob", method = "hill.climb", parset = list(init = 0, metric = mmce))
+#'   m = makeStackedLearner(base.learners = lrns, predict.type = "prob", method = "hill.climb", parset = list(init = 1, metric = mmce))
 #'   tmp = train(m, tsk)
 #'   res = predict(tmp, tsk)
 #'
@@ -82,9 +86,10 @@
 #'   tsk = makeRegrTask(data = BostonHousing, target = "medv")
 #'   base = c("regr.rpart", "regr.svm")
 #'   lrns = lapply(base, makeLearner)
-#'   m = makeStackedLearner(base.learners = lrns, predict.type = "response", method = "compress", parset = list(init = 0, metric = mmce))
+#'   m = makeStackedLearner(base.learners = lrns, predict.type = "response", method = "compress", parset = list(init = 1, metric = mmce))
 #'   tmp = train(m, tsk)
 #'   res = predict(tmp, tsk)
+#' }
 #' @export
 makeStackedLearner = function(base.learners, super.learner = NULL, predict.type = NULL,
   method = "stack.nocv", use.feat = FALSE, resampling = NULL, parset = list()) {
@@ -99,9 +104,9 @@ makeStackedLearner = function(base.learners, super.learner = NULL, predict.type 
   }
 
   baseType = unique(extractSubList(base.learners, "type"))
-  assertChoice(method, c("average", "stack.nocv", "stack.cv", "hill.climb", "compress"))
+  assertChoice(method, c("average", "stack.nocv", "stack.cv", "hill.climb0", "hill.climb2","compress"))
 
-  if (method %in% c("stack.cv", "hill.climb", "compress")) {
+  if (method %in% c("stack.cv", "hill.climb0", "hill.climb2", "compress")) {
     if (is.null(resampling)) {
       resampling = makeResampleDesc("CV", iters = 5L, stratify = ifelse(baseType == "classif", TRUE, FALSE))
     } else {
@@ -117,13 +122,13 @@ makeStackedLearner = function(base.learners, super.learner = NULL, predict.type 
     stop("Predicting standard errors currently not supported.")
   if (length(pts) > 1L)
     stop("Base learner must all have the same predict type!")
-  if ((method == "average" | method == "hill.climb") & (!is.null(super.learner) | is.null(predict.type)) )
+  if ((method %in% c("average", "hill.climb0", "hill.climb2")) & (!is.null(super.learner) | is.null(predict.type)) )
     stop("No super learner needed for this method or the 'predict.type' is not specified.")
-  if (method != "average" & method != "hill.climb" & is.null(super.learner))
+  if (method %nin% c("average", "hill.climb0", "hill.climb2") & is.null(super.learner))
     stop("You have to specify a super learner for this method.")
   #if (method != "average" & !is.null(predict.type))
   #  stop("Predict type has to be specified within the super learner.")
-  if ((method == "average" | method == "hill.climb") & use.feat)
+  if ((method %in% c("average", "hill.climb0", "hill.climb2")) & use.feat)
     stop("The original features can not be used for this method")
   #if (!inherits(resampling, "CVDesc")) # new 
   #  stop("Currently only CV is allowed for resampling!") # new
@@ -178,6 +183,7 @@ getStackedBaseLearnerPredictions = function(model, newdata = NULL, type = "pred.
     pred.data = model$learner.model$pred.train
   } else {
     # get base learner and predict type
+    #TODO: for hill.climb only selcted ones!!!
     bms = model$learner.model$base.models
     method = model$learner.model$method
     # if (model == "stack.cv") warning("Crossvalidated predictions for new data is not possible for this method.") # and not needes
@@ -185,7 +191,7 @@ getStackedBaseLearnerPredictions = function(model, newdata = NULL, type = "pred.
     pred = pred.data = vector("list", length(bms))
     for (i in seq_along(bms)) {
       pred[[i]] = predict(bms[[i]], newdata = newdata)
-      pred.data[[i]] = getResponse(pred[[i]], full.matrix = ifelse(method %in% c("average","hill.climb"), TRUE, FALSE))
+      pred.data[[i]] = getResponse(pred[[i]], full.matrix = ifelse(method %in% c("average","hill.climb0", "hill.climb2"), TRUE, FALSE))
     }
     names(pred.data) = sapply(bms, function(X) X$learner$id) #names(.learner$base.learners)
     names(pred) = sapply(bms, function(X) X$learner$id) #names(.learner$base.learners)
@@ -214,7 +220,8 @@ trainLearner.StackedLearner = function(.learner, .task, .subset, ...) {
     stack.nocv = stackNoCV(.learner, .task),
     stack.cv = stackCV(.learner, .task),
     # hill.climb = hillclimbBaseLearners(.learner, .task, ...)
-    hill.climb = do.call(hillclimbBaseLearners, c(list(.learner, .task), .learner$parset)),
+    hill.climb0 = do.call(hillclimbBaseLearners0, c(list(.learner, .task), .learner$parset)),
+    hill.climb2 = do.call(hillclimbBaseLearners, c(list(.learner, .task), .learner$parset)),
     compress = compressBaseLearners(.learner, .task, .learner$parset)
   )
 }
@@ -222,7 +229,7 @@ trainLearner.StackedLearner = function(.learner, .task, .subset, ...) {
 # FIXME: if newdata is the same data that was also used by training, then getBaseLearnerPrediction
 # won't use the crossvalidated predictions (for method = "stack.cv").
 #' @export
-predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
+predictLearner.StackedLearner0 = function(.learner, .model, .newdata, ...) {
   # FIXME actually only .learner$method is needed
   use.feat = .model$learner$use.feat
   # get predict.type from learner and super model (if available)
@@ -243,8 +250,8 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) {
   #
   # average/hill.climb
   #
-  if (.learner$method %in% c("average", "hill.climb")) {
-    if (.learner$method == "hill.climb") {
+  if (.learner$method %in% c("average", "hill.climb0", "hill.climb2")) {
+    if (.learner$method == "hill.climb0") {
       model.weight = .model$learner.model$weights
     } else {
       #FIXME Alternatively: all models can be kept. and here is the error handling done
@@ -450,11 +457,11 @@ stackCV = function(learner, task) {
        super.model = super.model, pred.train = pred.train)
 }
 
-hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagprob = 1, bagtime = 1,
+hillclimbBaseLearners0 = function(learner, task, replace = TRUE, init = 0, bagprob = 1, bagtime = 1,
   metric = NULL, ...) {
 
   assertFlag(replace)
-  assertInt(init, lower = 0, upper = length(learner$base.learners)) #807
+  assertInt(init, lower = 1, upper = length(learner$base.learners)) #807
   assertNumber(bagprob, lower = 0, upper = 1)
   assertInt(bagtime, lower = 1)
   if (init > 0 & class(metric) == "Measure")
@@ -615,7 +622,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagpro
   weights = weights/sum(weights)
   names(weights) = names(resres)
   
-  list(method = "hill.climb", base.models = base.models, super.model = NULL,
+  list(method = "hill.climb0", base.models = base.models, super.model = NULL,
        pred.train = pred.data, weights = weights, freq = freq)
 }
 
