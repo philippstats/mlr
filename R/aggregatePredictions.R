@@ -85,7 +85,7 @@ expandPredList = function(pred.list, frequency) {
   pred.list1 = pred.list[keep]
   # create grid for loop
   grid = data.frame(model = names(freq1), freq1, row.names = NULL)
-  expand_ = data.frame(model = rep(grid$model, grid$freq1)) %>% as.matrix %>% as.vector()
+  #expand_ = data.frame(model = rep(grid$model, grid$freq1)) %>% as.matrix %>% as.vector()
   expand = as.character(rep(grid$model, grid$freq1)) 
   pred.list2 = vector("list", length(expand))
   names(pred.list2) = paste(expand, 1:length(expand), sep = "_")
