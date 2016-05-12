@@ -95,6 +95,9 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
     #FIXME: maybe i will need them
     #selection.size = init
     selection.ind = inds
+
+    #FIXME: nicht 2. gl BLs hintereinander
+    #FIXME: max 10 iters oder so for statt while
     
     flag = TRUE
     while (flag) {
@@ -133,7 +136,6 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
       }
     } # while
     freq = freq + bagfreq #807
-    # FIXME add a list for weights
     sel.algo = names(base.models)[selection.ind]
     freq.list[[bagind]] = sel.algo
   }
