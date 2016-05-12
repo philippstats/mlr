@@ -1,4 +1,4 @@
-hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 0, bagprob = 1, bagtime = 1,
+hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagprob = 1, bagtime = 1,
   metric = mmce, ...) {
   assertFlag(replace)
   assertInt(init, lower = 0, upper = length(learner$base.learners)) #807
