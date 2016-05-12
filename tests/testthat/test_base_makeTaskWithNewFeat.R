@@ -20,10 +20,10 @@ for (tsk in tasks) {
     #message("org")
     #tsk %>% getTaskData %>% head %>% print 
     #message("new")
-    new.task %>% getTaskData %>% head %>% print 
+    #new.task %>% getTaskData %>% head %>% print 
     #message("###########################################################")
     if (pt == "prob") {
-      feat.names = grep("new.feat", names(getTaskData(new.task))
+      feat.names = grep("new.feat", names(getTaskData(new.task)))
     } else {
       new = getTaskData(new.task)$new.feat
       expect_that(new, is_a("factor"))
