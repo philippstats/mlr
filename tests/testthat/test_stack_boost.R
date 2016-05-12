@@ -23,7 +23,7 @@ test_that("Parameters for boost.stack model (classif)", {
   for (tsk in tasks_classif) {
     for (spt in pts) {
       for (bpt in pts) {
-        context(paste(tsk$task.desc$id, spt, bpt))
+        #context(paste(tsk$task.desc$id, spt, bpt))
         lrns = list(
           makeLearner("classif.gbm"),
           makeLearner("classif.randomForest"))
