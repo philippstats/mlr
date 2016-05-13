@@ -14,7 +14,7 @@
 
 context("stack_boost")
 
-test_that("Parameters for boost.stack model (classif)", {
+test_that("Parameters for makeBoostedStackingLearner (classif)", {
   tasks_classif = list(binaryclass.task, multiclass.task) 
   ctrl = makeTuneControlRandom(maxit = 3L)
   pts = c("prob", "response")
