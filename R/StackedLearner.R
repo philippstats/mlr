@@ -86,14 +86,14 @@
 #'   tsk = makeRegrTask(data = BostonHousing, target = "medv")
 #'   base = c("regr.rpart", "regr.svm")
 #'   lrns = lapply(base, makeLearner)
-#'   m = makeStackedLearner(base.learners = lrns, predict.type = "response", method = "compress", parset = list(init = 1, metric = mmce))
+#'   m = makeStackedLearner(base.learners = lrns, predict.type = "response", method = "compress", parset = list(init = 1, metric = mae))
 #'   tmp = train(m, tsk)
 #'   res = predict(tmp, tsk)
 #' }
 #' @export
 makeStackedLearner = function(base.learners, super.learner = NULL, predict.type = NULL,
   method = "stack.nocv", use.feat = FALSE, resampling = NULL, parset = list()) {
-
+  # checking
   if (is.character(base.learners)) base.learners = lapply(base.learners, checkLearner)
   if (is.null(super.learner) && method == "compress") {
     super.learner = makeLearner(paste0(base.learners[[1]]$type,'.nnet'))
@@ -116,11 +116,11 @@ makeStackedLearner = function(base.learners, super.learner = NULL, predict.type 
     assertClass(resampling, "NULL")
   }
 
-  pts = unique(extractSubList(base.learners, "predict.type"))
-  if ("se"%in%pts | (!is.null(predict.type) && predict.type == "se") |
+  bpt = unique(extractSubList(base.learners, "predict.type"))
+  if ("se" %in% bpt | (!is.null(predict.type) && predict.type == "se") |
         (!is.null(super.learner) && super.learner$predict.type == "se"))
     stop("Predicting standard errors currently not supported.")
-  if (length(pts) > 1L)
+  if (length(bpt) > 1L)
     stop("Base learner must all have the same predict type!")
   if ((method %in% c("average", "hill.climb0", "hill.climb2")) & (!is.null(super.learner) | is.null(predict.type)) )
     stop("No super learner needed for this method or the 'predict.type' is not specified.")
@@ -132,15 +132,12 @@ makeStackedLearner = function(base.learners, super.learner = NULL, predict.type 
     stop("The original features can not be used for this method")
   #if (!inherits(resampling, "CVDesc")) # new 
   #  stop("Currently only CV is allowed for resampling!") # new
-
   # lrn$predict.type is "response" by default change it using setPredictType
   lrn =  makeBaseEnsemble(
     id = "stack",
     base.learners = base.learners,
     cl = "StackedLearner"
   )
-
-  # get predict.type from super learner or from predict.type
   if (!is.null(super.learner)) {
     lrn = setPredictType(lrn, predict.type = super.learner$predict.type)
   } else {
@@ -175,17 +172,18 @@ makeStackedLearner = function(base.learners, super.learner = NULL, predict.type 
 #' @export
 getStackedBaseLearnerPredictions = function(model, newdata = NULL, type = "pred.data") {
   assertChoice(type, choices = c("pred.data", "pred"))
-  # get base learner and predict type
-  #bms = model$learner.model$base.models
-  #method = model$learner.model$method
-
+  # checking
   if (is.null(newdata)) {
     pred.data = model$learner.model$pred.train
   } else {
     # get base learner and predict type
-    #TODO: for hill.climb only selcted ones!!!
-    bms = model$learner.model$base.models
     method = model$learner.model$method
+    if (method == "hill.climb2") {
+      sel.bls = names(which(model$learner.model$freq > 0))
+      bms = model$learner.model$base.models[sel.bls]
+    } else {
+      bms = model$learner.model$base.models
+    }
     # if (model == "stack.cv") warning("Crossvalidated predictions for new data is not possible for this method.") # and not needes
     # predict prob vectors with each base model
     pred = pred.data = vector("list", length(bms))
