@@ -1,4 +1,4 @@
-context("stack")
+context("stack_base")
 
 checkStack = function(task, method, base, super, bms.pt, sm.pt, use.feat) {
   base = lapply(base, makeLearner, predict.type = bms.pt)
@@ -70,28 +70,33 @@ test_that("Parameters for hill climb works", {
     makeLearner("classif.kknn", id = "classif.knn2", predict.type = "prob", k = 2),
     makeLearner("classif.kknn", id = "classif.knn3", predict.type = "prob", k = 3),
     makeLearner("classif.kknn", id = "classif.knn4", predict.type = "prob", k = 4),
-    makeLearner("classif.kknn", id = "classif.knn5", predict.type = "prob", k = 5))
+    makeLearner("classif.kknn", id = "classif.knn5", predict.type = "prob", k = 5)
+  )
+  for (init in c(1, 5)) {
+    for(bagprob in c(0.5, 1)) {
+      for (replace in c(TRUE, FALSE)) {
+        for (bagtime in c(1, 2, 10)) {
+          m = makeStackedLearner(base.learners = lrns, predict.type = "prob", 
+            method = "hill.climb2", parset = list(init = init, bagprob = bagprob, 
+            bagtime = bagtime, replace = replace, metric = mmce))
+          tmp = train(m, tsk)
+          res = predict(tmp, tsk)
+          max.selected = (init + length(bls)) * bagtime
+          n.selected = sum(tmp$learner.model$freq)
+          
+          expect_equal(anyNA(tmp$learner.model$bls.performance), FALSE)
+          expect_equal(anyNA(res$data$response), FALSE)
+          expect_true(n.selected <= max.selected)
+        }
+      }
+    }
+  } 
+  # use other metric (auc)
   m = makeStackedLearner(base.learners = lrns, predict.type = "prob", method = "hill.climb2",
-    parset = list(init = 1, bagprob = 0.8, bagtime = 5, replace = FALSE, metric = mmce))
+    parset = list(replace = TRUE, bagprob = 0.7, bagtime = 3, init = 2, metric = auc))
   tmp = train(m, tsk)
   res = predict(tmp, tsk)
-
-  expect_equal(sum(tmp$learner.model$weights), 1)
-
-  #metric = function(pred, true) {
-  #  pred = colnames(pred)[max.col(pred)]
-  #  tb = table(pred, true)
-  #  return( 1- sum(diag(tb))/sum(tb) )
-  #}
-
-  m = makeStackedLearner(base.learners = lrns, predict.type = "prob", method = "hill.climb2",
-    parset = list(replace = TRUE, bagprob = 0.7, bagtime = 3, init = 2, metric = mmce))
-  tmp = train(m, tsk)
-  res = predict(tmp, tsk)
-
-  expect_equal(sum(tmp$learner.model$weights), 1)
-
-  ### insert checks for metric of class Measure
-
+  expect_equal(anyNA(tmp$learner.model$bls.performance), FALSE)
+  expect_equal(anyNA(res$data$response), FALSE)
 })
 

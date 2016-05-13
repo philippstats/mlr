@@ -52,7 +52,15 @@ test_that("Parameters for boost.stack model (classif)", {
         #performance(res)
         
         r = resample(stb, task = tsk, resampling = cv2, models = TRUE, show.info = TRUE)
-        expect_is(r, "ResampleResult")
+        expect_is(r$aggr, "numeric")
+        if (spt == "prob") {
+          p = getPredictionProbabilities(r$pred, cl = tsk$task.desc$class.levels)
+          expect_that(dim(p), is_identical_to(c(getTaskSize(tsk), length(levels(getTaskTargets(tsk))))))
+        } else {
+          p = getPredictionResponse(r$pred)
+          expect_class(p, "factor")
+          expect_equal(length(p), (getTaskSize(tsk)))
+        }
       }
     }
   }
