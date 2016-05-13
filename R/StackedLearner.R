@@ -347,21 +347,14 @@ setPredictType.StackedLearner = function(learner, predict.type) {
 # super simple averaging of base-learner predictions without weights. we should beat this
 averageBaseLearners = function(learner, task) {
   bls = learner$base.learners
-  #base.models = pred.data = vector("list", length(bls))
   # parallelMap
   parallelLibrary("mlr", master = FALSE, level = "mlr.stack", show.info = FALSE)
   exportMlrOptions(level = "mlr.stack")
   results = parallelMap(doTrainPredict, bls, more.args = list(task), impute.error = function(x) x)
+  
   base.models = lapply(results, function(x) x[["base.models"]])
-  pred.data = lapply(results, function(x) try(getResponse(x[["pred"]], full.matrix = TRUE)))
-  #for (i in seq_along(bls)) {
-  #  bl = bls[[i]]
-  #  model = train(bl, task) # FIXME: err is failuremodel
-  #  #message(paste(">>>", bl$id, paste(class(model))))
-  #  base.models[[i]] = model
-  #  pred = predict(model, task = task)
-  #  pred.data[[i]] = getResponse(pred, full.matrix = TRUE)
-  #}
+  pred.data = lapply(results, function(x) try(getResponse(x[["pred"]], full.matrix = TRUE))) #QUEST: Return Predictions instead of data.frame!?
+
   names(base.models) = names(bls)
   names(pred.data) = names(bls)
 
@@ -372,8 +365,8 @@ averageBaseLearners = function(learner, task) {
 
   if (length(broke.idx) > 0) {
     messagef("Base Learner %s is broken and will be removed\n", names(bls)[broke.idx])
-    base.models = base.models[-broke.idx, drop = FALSE]
-    pred.data = pred.data[-broke.idx, drop = FALSE]
+    base.models = base.models[-broke.idx]
+    pred.data = pred.data[-broke.idx]
   }
 
   list(method = "average", base.models = base.models, super.model = NULL,
@@ -389,25 +382,19 @@ stackCV = function(learner, task) {
   bls = learner$base.learners
   use.feat = learner$use.feat
   # cross-validate all base learners and get a prob vector for the whole dataset for each learner
-  #base.models = pred.data = vector("list", length(bls))
   rin = makeResampleInstance(learner$resampling, task = task)
   # parallelMap
   parallelLibrary("mlr", master = FALSE, level = "mlr.stack", show.info = FALSE)
   exportMlrOptions(level = "mlr.stack")
   results = parallelMap(doResampleTrain, bls, more.args = list(task, rin), impute.error = function(x) x)
 
-    #for (i in seq_along(bls)) {
-  #  bl = bls[[i]]
-  #  r = resample(bl, task, rin, show.info = FALSE) #, extract = function(x) class(x))
-  #  pred.data[[i]] = getResponse(r$pred, full.matrix = FALSE)
-  #  # also fit all base models again on the complete original data set
-  #  base.models[[i]] = train(bl, task)
-  #}
   base.models = lapply(results, function(x) x[["base.models"]])
   pred.data = lapply(results, function(x) try(getResponse(x[["resres"]]$pred, full.matrix = FALSE)))
   
   names(pred.data) = names(bls)
   names(base.models) = names(bls)
+  tn = getTaskTargetNames(task)
+  pred.data[[tn]] = results[[1]]$resres$pred$data$truth
 
   # Remove FailureModels which would occur problems later
   broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
@@ -419,31 +406,17 @@ stackCV = function(learner, task) {
     base.models = base.models[-broke.idx]
     pred.data = pred.data[-broke.idx]
   }
-  
+  # convert list to
   if (type == "regr" | type == "classif") {
     pred.data = as.data.frame(pred.data)
   } else {
     pred.data = as.data.frame(lapply(pred.data, function(X) X)) #X[,-ncol(X)]))
   }
-
-  # add true target column IN CORRECT ORDER
-  tn = getTaskTargetNames(task)
-  test.inds = unlist(rin$test.inds)
-
-  pred.train = as.list(pred.data[order(test.inds), , drop = FALSE])
-
-  pred.data[[tn]] = getTaskTargets(task)[test.inds]
-
-  # now fit the super learner for predicted_pred.data --> target
-  pred.data = pred.data[order(test.inds), , drop = FALSE]
-  #na_count <-function (x) sapply(x, function(y) sum(is.na(y)))
-  #message(na_count(pred.data))
-
   if (use.feat) {
     # add data with normal features IN CORRECT ORDER
-    feat = getTaskData(task)#[test.inds, ]
-    feat = feat[, !colnames(feat)%in%tn, drop = FALSE]
-    pred.data = cbind(pred.data, feat)
+    org.feat = getTaskData(task)#[test.inds, ]
+    org.feat = org.feat[, !colnames(org.feat) %in% tn, drop = FALSE]
+    pred.data = cbind(pred.data, org.feat)
     super.task = makeSuperLearnerTask(learner$super.learner$type, data = pred.data, target = tn)
   } else {
     super.task = makeSuperLearnerTask(learner$super.learner$type, data = pred.data, target = tn)
@@ -454,7 +427,7 @@ stackCV = function(learner, task) {
   super.model = train(learner$super.learner, super.task)
 
   list(method = "stack.cv", base.models = base.models,
-       super.model = super.model, pred.train = pred.train)
+       super.model = super.model, pred.train = pred.data)
 }
 
 hillclimbBaseLearners0 = function(learner, task, replace = TRUE, init = 0, bagprob = 1, bagtime = 1,
