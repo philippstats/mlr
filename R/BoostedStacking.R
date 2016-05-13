@@ -20,6 +20,8 @@
 #'   Performance measure.
 #' @param niter [\code{integer}]\cr
 #'   Number of boosting iterations.
+#' @param tolerance [\code{numeric}]\cr
+#'   Tolerance for stopping criterion.
 #' @examples 
 #'  lrns = list(
 #'    #makeLearner("classif.ksvm", kernel = "rbfdot"), # no implm for response and multiclass
@@ -40,7 +42,11 @@
 #'
 #' @export  
 #' 
-makeBoostedStackingLearner = function(model.multiplexer = mm, predict.type = "prob", resampling = cv2, mm.ps = ps, control = ctrl, measures = mmce, niter = 2L) {
+#' 
+
+#TODO: tol als parameter
+
+makeBoostedStackingLearner = function(model.multiplexer = mm, predict.type = "prob", resampling = cv2, mm.ps = ps, control = ctrl, measures = mmce, niter = 2L, tolerance = 1e-8) {
 	# do we need an id?
   # input checks
 	# INSERT IT HERE
@@ -50,6 +56,7 @@ makeBoostedStackingLearner = function(model.multiplexer = mm, predict.type = "pr
   assertClass(mm.ps, "ParamSet")
   assertClass(control, "TuneControlRandom") # for now
   assertInt(niter, lower = 1L)
+  assertNumber(tolerance)
   #FIXME check if mm and ps fit together
   # 
   if (model.multiplexer$type == "classif" & model.multiplexer$predict.type == "response" & "factors" %nin% model.multiplexer$properties) {
@@ -74,6 +81,7 @@ makeBoostedStackingLearner = function(model.multiplexer = mm, predict.type = "pr
   bsl$resampling = resampling
   bsl$measures = measures
   bsl$control = control
+  bsl$tolerance = tolerance
   return(bsl)
 }
 
@@ -93,6 +101,7 @@ trainLearner.BoostedStackingLearner = function(.learner, .task, .subset, ...) {
   base.models = preds = vector("list", length = niter)
   score = rep(ifelse(.learner$measures$minimize, Inf, -Inf), niter + 1)
   names(score) = c("init.score", paste("not.set", 1:niter, sep = "."))
+  tolerance = .learner$tolerance
   
   for (i in seq_len(niter)) {
     messagef("iter %s time: %s", i, Sys.time())
@@ -105,8 +114,11 @@ trainLearner.BoostedStackingLearner = function(.learner, .task, .subset, ...) {
     score[i+1] = res$y[1]
     names(score)[i+1] = paste(res$x$selected.learner, i, sep = ".")
     shift = score[i] - score[i+1]
-#    messagef("shift is %s", shift); messagef("shift is <0: %s", shift < 1e-8)
-    if (ifelse(.learner$measures$minimize, shift < 1e-8, shift > 1e-8)) {
+    #messagef(">shift is %s", shift)
+    #messagef(">tol is %s", tolerance)
+    tol.reached = ifelse(.learner$measures$minimize, shift < tolerance, shift > tolerance)
+    #messagef(">force.stop is %s", tol.reached)
+    if (tol.reached) {
       messagef("Boosting iterations stopped after %s niters", i)
       to.rm = i:niter
       #print(score)
