@@ -24,13 +24,10 @@ getResponse = function(pred, full.matrix = NULL) {
 
 # Create a super learner task
 makeSuperLearnerTask = function(type, data, target) {
-  #na_count <-function (x) sapply(x, function(y) sum(is.na(y)))
-  #print(na_count(data))
-  #data = data[, colnames(unique(as.matrix(data), MARGIN = 2))] # may not be useful for small data sets with predict.type=response
-  # FIX it for now:
   keep.idx = colSums(is.na(data)) == 0
   data = data[, keep.idx, drop = FALSE]
-  messagef("Feature '%s' will be removed\n", names(data)[!keep.idx])
+  if (getMlrOption("show.info"))
+    messagef("Feature '%s' will be removed\n", names(data)[!keep.idx])
   #message((na_count(data)))
   if (type == "classif") {
     removeConstantFeatures(task = makeClassifTask(id = "level 1 data", 
@@ -42,7 +39,8 @@ makeSuperLearnerTask = function(type, data, target) {
   }
 }
 
-# Count the ratio
+# Count the ratio (used if base.learner predict.type = "response" and 
+# super.learner predict.type is "prob")
 rowiseRatio = function(pred.data, levels, model.weight = NULL) {
   m = length(levels)
   p = ncol(pred.data)
@@ -76,7 +74,7 @@ doResampleTrain = function(bls, task, rin) {
 }
 
 
-
+# check if NULL or any NA
 checkIfNullOrAnyNA = function(x) {
   if (is.null(x)) return(TRUE)
   if (any(is.na(x))) return(TRUE)
