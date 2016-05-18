@@ -4,21 +4,21 @@
 \alias{makeXBestLearnersFromMMTuneResult}
 \title{Creates x best learners from ModelMultiplexer TuneResult.}
 \usage{
-makeXBestLearnersFromMMTuneResult(tune.result, base.learners, x.best = 5,
-  measure = mmce)
+makeXBestLearnersFromMMTuneResult(tune.result, model.multiplexer,
+  mm.ps = mm.ps, x.best = 5, measure = mmce)
 }
 \arguments{
 \item{tune.result}{[\code{\link{TuneResult}}]\cr
 \code{TuneResult} from \code{ModelMultiplexer}}
-
-\item{base.learners}{[\code{list of \link{TuneResult}}]\cr
-Needed to exract fix parameters.}
 
 \item{x.best}{[\code{integer(1)}]
 Number of best learners to extract.}
 
 \item{measure}{[\code{\link{Measure}}]\cr
 Measure to apply to "extract from best".}
+
+\item{base.learners}{[\code{list of \link{TuneResult}}]\cr
+Needed to exract fix parameters.}
 }
 \value{
 [\code{list of x best learners}]

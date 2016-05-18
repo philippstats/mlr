@@ -130,8 +130,8 @@ trainLearner.BoostedStackingLearner = function(.learner, .task, .subset, ...) {
       break()
     }
     # create learner, model, prediction
-    best.lrn = makeXBestLearnersFromMMTuneResult(tune.result = res, 
-      base.learners = .learner$model.multiplexer$base.learners, 
+    best.lrn = makeXBestLearnersFromMMTuneResult(tune.result = res,
+      model.multiplexer = .learner$model.multiplexer, mm.ps = .learner$mm.ps,
       x.best = 1, measure = .learner$measures) # FIXME x.best
     base.models[[i]] = train(best.lrn[[1]], new.task)
     preds[[i]] = resample(best.lrn[[1]], new.task, resampling = .learner$resampling, 

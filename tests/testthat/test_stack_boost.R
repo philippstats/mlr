@@ -6,7 +6,7 @@
 #source('~/Documents/Rdevelop/mlr/tests/testthat/helper_objects.R')
 #li = setdiff(ls(), c("binaryclass.task", "multiclass.task", "multiclass.small.task", "regr.num.task", "regr.task"))
 #rm(list = li); rm(li)
-#task = tsk = pid.task
+#tsk = tsk = subsetTask(pid.task, 1:150)
 #task = tsk = iris.task
 
 #bpt = "prob"
@@ -23,7 +23,7 @@ test_that("Parameters for makeBoostedStackingLearner (classif)", {
   for (tsk in tasks_classif) {
     for (spt in pts) {
       for (bpt in pts) {
-        #context(paste(tsk$task.desc$id, spt, bpt))
+        context(paste(tsk$task.desc$id, spt, bpt))
         lrns = list(
           makeLearner("classif.gbm"),
           makeLearner("classif.randomForest"))
@@ -100,3 +100,30 @@ test_that("Parameters for makeBoostedStackingLearner (classif)", {
 #    expect_is(r, "ResampleResult")
 #  }  
 #})
+
+test_that("Check makeXBestLearnersFromMMTuneResult", {
+  
+  mm.lrns = list(
+    makeLearner("classif.xgboost", predict.type = "prob", fix.factors.prediction = TRUE,
+      max_depth = 3, nrounds = 10),
+    makeLearner("classif.svm", predict.type = "prob", fix.factors.prediction = TRUE))
+  mm = makeModelMultiplexer(mm.lrns)
+  
+  mm.ps = makeModelMultiplexerParamSet(mm,
+    classif.xgboost = makeParamSet(
+      makeNumericParam("eta", lower = -7L, upper = -5L, trafo = function(x) 2^x)
+    ),
+    classif.svm = makeParamSet(
+      makeDiscreteParam("kernel", values = c("linear", "polynomial", "radial")),
+      makeNumericParam("cost", lower = 2^-12, upper = 2^12),
+      makeIntegerParam("degree", lower = 2L, upper = 2L, requires = quote(kernel == "polynomial")),
+      makeNumericParam("gamma", lower = 0, upper = 2^12, requires = quote(kernel == "radial"))
+    )
+  )
+  ctrl = makeTuneControlRandom(maxit = 4L)
+  set.seed(1)
+  res = tuneParams(mm, tsk, cv2, par.set = mm.ps, 
+    measures = list(mmce, auc, f1, ppv), control = ctrl)
+  
+  lrns = makeXBestLearnersFromMMTuneResult(res, mm, mm.ps, x.best = 3, measure = mmce)
+})

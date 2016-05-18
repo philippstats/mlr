@@ -1,5 +1,14 @@
 ### other helpers ###
 
+# Sets the predict.type for the super learner of a stacked learner
+#' @export
+setPredictType.StackedLearner = function(learner, predict.type) {
+  lrn = setPredictType.Learner(learner, predict.type)
+  lrn$predict.type = predict.type
+  if ("super.learner"%in%names(lrn)) lrn$super.learner$predict.type = predict.type
+  return(lrn)
+}
+
 # Returns response for correct usage in stackNoCV and stackCV and for predictions
 # also used in average and hill.climb
 # full.matrix only used for predict.type = "prob": only returns positive prob if FALSE, all pred.data otherwise
@@ -79,4 +88,20 @@ checkIfNullOrAnyNA = function(x) {
   if (is.null(x)) return(TRUE)
   if (any(is.na(x))) return(TRUE)
   else FALSE
+}
+
+
+# order a score vector and return the init numbers
+orderScore = function(scores, minimize, init) {
+  # checks
+  assertClass(score, "numeric")
+  assertChoice(minimize, c(TRUE, FALSE))
+  assertInt(init, lower = 1, upper = length(score))
+  # body
+  if (is.null(init)) init = length(score)
+  if (minimize) {
+    order(scores)[1:init]
+  } else {
+    rev(order(scores))[1:init] 
+  }
 }

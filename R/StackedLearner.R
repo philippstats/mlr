@@ -9,8 +9,7 @@
 #'   \item{\code{stack.nocv}}{Fits the super learner, where in-sample predictions of the base learners are used.}
 #'   \item{\code{stack.cv}}{Fits the super learner, where the base learner predictions are computed
 #'   by crossvalidated predictions (the resampling strategy can be set via the \code{resampling} argument).}
-#'   \item{\code{hill.climb0}}{Select a subset of base learner predictions by hill climbing algorithm.}
-#'   \item{\code{hill.climb2}}{Select a subset of base learner predictions by hill climbing algorithm. (new implementation)}
+#'   \item{\code{hill.climb}}{Select a subset of base learner predictions by hill climbing algorithm. (new implementation)}
 #'   \item{\code{compress}}{Train a neural network to compress the model from a collection of base learners.}
 #'  }
 #'
@@ -39,9 +38,7 @@
 #'   \dQuote{average} for averaging the predictions of the base learners,
 #'   \dQuote{stack.nocv} for building a super learner using the predictions of the base learners,
 #'   \dQuote{stack.cv} for building a super learner using crossvalidated predictions of the base learners.
-#'   \dQuote{hill.climb0} for averaging the predictions of the base learners, with the weights learned from
-#'   hill climbing algorithm and
-#'   \dQuote{hill.climb2} (new implementation) for averaging the predictions of the base learners, with the weights learned from
+#'   \dQuote{hill.climb} (new implementation) for averaging the predictions of the base learners, with the weights learned from
 #'   hill climbing algorithm and 
 #'   \dQuote{compress} for compressing the model to mimic the predictions of a collection of base learners
 #'   while speeding up the predictions and reducing the size of the model.
@@ -95,18 +92,18 @@ makeStackedLearner = function(base.learners, super.learner = NULL, predict.type 
   method = "stack.nocv", use.feat = FALSE, resampling = NULL, parset = list()) {
   # checking
   if (is.character(base.learners)) base.learners = lapply(base.learners, checkLearner)
-  if (is.null(super.learner) && method == "compress") {
-    super.learner = makeLearner(paste0(base.learners[[1]]$type,'.nnet'))
-  }
+  #if (is.null(super.learner) && method == "compress") {
+  #  super.learner = makeLearner(paste0(base.learners[[1]]$type,'.nnet'))
+  #}
   if (!is.null(super.learner)) {
     super.learner = checkLearner(super.learner)
     if (!is.null(predict.type)) super.learner = setPredictType(super.learner, predict.type)
   }
 
   baseType = unique(extractSubList(base.learners, "type"))
-  assertChoice(method, c("average", "stack.nocv", "stack.cv", "hill.climb0", "hill.climb2","compress"))
+  assertChoice(method, c("average", "stack.nocv", "stack.cv", "hill.climb","compress"))
 
-  if (method %in% c("stack.cv", "hill.climb0", "hill.climb2", "compress")) {
+  if (method %in% c("stack.cv", "hill.climb", "compress")) {
     if (is.null(resampling)) {
       resampling = makeResampleDesc("CV", iters = 5L, stratify = ifelse(baseType == "classif", TRUE, FALSE))
     } else {
@@ -122,13 +119,13 @@ makeStackedLearner = function(base.learners, super.learner = NULL, predict.type 
     stop("Predicting standard errors currently not supported.")
   if (length(bpt) > 1L)
     stop("Base learner must all have the same predict type!")
-  if ((method %in% c("average", "hill.climb0", "hill.climb2")) & (!is.null(super.learner) | is.null(predict.type)) )
+  if ((method %in% c("average", "hill.climb")) & (!is.null(super.learner) | is.null(predict.type)) )
     stop("No super learner needed for this method or the 'predict.type' is not specified.")
-  if (method %nin% c("average", "hill.climb0", "hill.climb2") & is.null(super.learner))
+  if (method %nin% c("average", "hill.climb") & is.null(super.learner))
     stop("You have to specify a super learner for this method.")
   #if (method != "average" & !is.null(predict.type))
   #  stop("Predict type has to be specified within the super learner.")
-  if ((method %in% c("average", "hill.climb0", "hill.climb2")) & use.feat)
+  if ((method %in% c("average", "hill.climb")) & use.feat)
     stop("The original features can not be used for this method")
   #if (!inherits(resampling, "CVDesc")) # new 
   #  stop("Currently only CV is allowed for resampling!") # new
@@ -178,9 +175,9 @@ getStackedBaseLearnerPredictions = function(model, newdata = NULL, type = "pred.
   } else {
     # get base learner and predict type
     method = model$learner.model$method
-    if (method == "hill.climb2") {
-      sel.bls = names(which(model$learner.model$freq > 0))
-      bms = model$learner.model$base.models[sel.bls]
+    if (method == "hill.climb") {
+      used.bls = names(which(model$learner.model$freq > 0))
+      bms = model$learner.model$base.models[used.bls]
     } else {
       bms = model$learner.model$base.models
     }
@@ -189,7 +186,7 @@ getStackedBaseLearnerPredictions = function(model, newdata = NULL, type = "pred.
     pred = pred.data = vector("list", length(bms))
     for (i in seq_along(bms)) {
       pred[[i]] = predict(bms[[i]], newdata = newdata)
-      pred.data[[i]] = getResponse(pred[[i]], full.matrix = ifelse(method %in% c("average","hill.climb0", "hill.climb2"), TRUE, FALSE))
+      pred.data[[i]] = getResponse(pred[[i]], full.matrix = ifelse(method %in% c("average", "hill.climb"), TRUE, FALSE))
     }
     names(pred.data) = sapply(bms, function(X) X$learner$id) #names(.learner$base.learners)
     names(pred) = sapply(bms, function(X) X$learner$id) #names(.learner$base.learners)
@@ -218,384 +215,11 @@ trainLearner.StackedLearner = function(.learner, .task, .subset, ...) {
     stack.nocv = stackNoCV(.learner, .task),
     stack.cv = stackCV(.learner, .task),
     # hill.climb = hillclimbBaseLearners(.learner, .task, ...)
-    hill.climb0 = do.call(hillclimbBaseLearners0, c(list(.learner, .task), .learner$parset)),
-    hill.climb2 = do.call(hillclimbBaseLearners, c(list(.learner, .task), .learner$parset)),
+    hill.climb = do.call(hillclimbBaseLearners, c(list(.learner, .task), .learner$parset)),
     compress = compressBaseLearners(.learner, .task, .learner$parset)
   )
 }
 
-# FIXME: if newdata is the same data that was also used by training, then getBaseLearnerPrediction
-# won't use the crossvalidated predictions (for method = "stack.cv").
-#' @export
-predictLearner.StackedLearner0 = function(.learner, .model, .newdata, ...) {
-  # FIXME actually only .learner$method is needed
-  use.feat = .model$learner$use.feat
-  # get predict.type from learner and super model (if available)
-  sm.pt = .model$learner$predict.type
-  # get of predict type base learner
-  bms.pt = unique(extractSubList(.model$learner$base.learners, "predict.type"))
-  # get task information (classif)
-  td = .model$task.desc
-  type = ifelse(td$type == "regr", "regr",
-    ifelse(length(td$class.levels) == 2L, "classif", "multiclassif"))
-
-  # predict prob vectors with each base model
-  if (.learner$method != "compress") {
-    pred.data = getStackedBaseLearnerPredictions(model = .model, newdata = .newdata, type = "pred.data")
-  } else {
-    pred.data = .newdata
-  }
-  #
-  # average/hill.climb
-  #
-  if (.learner$method %in% c("average", "hill.climb0", "hill.climb2")) {
-    if (.learner$method == "hill.climb0") {
-      model.weight = .model$learner.model$weights
-    } else {
-      #FIXME Alternatively: all models can be kept. and here is the error handling done
-      model.weight = rep(1/length(pred.data), length(pred.data))
-    }
-    # --- bms.pt == "prob" ---
-    if (bms.pt == "prob") {
-      # if base learner predictions are probabilities for classification
-      for (i in 1:length(pred.data))
-        pred.data[[i]] = pred.data[[i]]*model.weight[i]
-      pred.data = Reduce("+", pred.data)
-      if (sm.pt == "prob") {
-        # if super learner predictions should be probabilities
-        return(as.matrix(pred.data))
-      } else {
-        # if super learner predictions should be responses
-        return(factor(colnames(pred.data)[max.col(pred.data)], td$class.levels))
-      }
-    # --- bms.pt == "response" ---
-    } else { 
-      pred.data = as.data.frame(pred.data)
-      # if base learner predictions are responses
-      if (type == "classif" || type == "multiclassif") {
-        # if base learner predictions are responses for classification
-        if (sm.pt == "prob") {
-          # if super learner predictions should be probabilities, iter over rows to get proportions
-          # FIXME: this is very slow + CUMBERSOME. we also do it in more places
-          # we need a bbmisc fun for counting proportions in rows or cols
-          #pred.data = apply(pred.data, 1L, function(x) (table(factor(x, td$class.levels) )/length(x)))
-          #return(setColNames(t(pred.data), td$class.levels))
-          pred.data = rowiseRatio(pred.data, td$class.levels, model.weight)
-          return(pred.data)
-        } else {
-          # if super learner predictions should be responses
-          return(factor(apply(pred.data, 1L, computeMode), td$class.levels))
-        }
-      }
-      if (type == "regr") {
-        # if base learner predictions are responses for regression
-        prob = Reduce("+", pred.data) / length(pred.data) #rowMeans(pred.data)
-        return(prob)
-      }
-    }
-  # 
-  # compress
-  #
-  } else if (.learner$method == "compress") {
-    sm = .model$learner.model$super.model
-
-    pred.data = as.data.frame(pred.data)
-    pred = predict(sm, newdata = pred.data)
-    if (sm.pt == "prob") {
-      return(as.matrix(getPredictionProbabilities(pred, cl = td$class.levels)))
-    } else {
-      return(pred$data$response)
-    }
-  #
-  # stack.nocv stack.cv
-  #
-  } else { 
-    pred.data = as.data.frame(pred.data)
-
-    if (use.feat) {
-      # feed pred.data into super model and we are done
-      feat = .newdata[, colnames(.newdata) %nin% td$target, drop = FALSE]
-      predData = cbind(pred.data, feat)
-    } else {
-      predData = pred.data
-    }
-    sm = .model$learner.model$super.model
-    messagef("Super model '%s' will use %s features and %s observations for prediction", sm$id, NCOL(predData), NROW(predData))
-    messagef("There are %s NA in 'predData'", sum(is.na(predData)))
-    pred = predict(sm, newdata = predData)
-    if (sm.pt == "prob") {
-      return(as.matrix(getPredictionProbabilities(pred, cl = td$class.levels)))
-    } else {
-      return(pred$data$response)
-    }
-  }
-}
-
-# Sets the predict.type for the super learner of a stacked learner
-#' @export
-setPredictType.StackedLearner = function(learner, predict.type) {
-  lrn = setPredictType.Learner(learner, predict.type)
-  lrn$predict.type = predict.type
-  if ("super.learner"%in%names(lrn)) lrn$super.learner$predict.type = predict.type
-  return(lrn)
-}
-
-### helpers to implement different ensemble types ###
-
-# super simple averaging of base-learner predictions without weights. we should beat this
-averageBaseLearners = function(learner, task) {
-  bls = learner$base.learners
-  # parallelMap
-  parallelLibrary("mlr", master = FALSE, level = "mlr.stack", show.info = FALSE)
-  exportMlrOptions(level = "mlr.stack")
-  results = parallelMap(doTrainPredict, bls, more.args = list(task), impute.error = function(x) x)
-  
-  base.models = lapply(results, function(x) x[["base.models"]])
-  pred.data = lapply(results, function(x) try(getResponse(x[["pred"]], full.matrix = TRUE))) #QUEST: Return Predictions instead of data.frame!?
-
-  names(base.models) = names(bls)
-  names(pred.data) = names(bls)
-
-  #FIXME: I don't know if it is the nicest way to remove bls 
-  broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
-  broke.idx.pd = which(unlist(lapply(pred.data, function(x) any(is.na(x)))))
-  broke.idx = unique(broke.idx.bm, broke.idx.pd)
-
-  if (length(broke.idx) > 0) {
-    messagef("Base Learner %s is broken and will be removed\n", names(bls)[broke.idx])
-    base.models = base.models[-broke.idx]
-    pred.data = pred.data[-broke.idx]
-  }
-
-  list(method = "average", base.models = base.models, super.model = NULL,
-    pred.train = pred.data)
-}
-
-# stacking where we crossval the training set with the base learners, then super-learn on that
-stackCV = function(learner, task) {
-
-  td = getTaskDescription(task)
-  type = ifelse(td$type == "regr", "regr",
-    ifelse(length(td$class.levels) == 2L, "classif", "multiclassif"))
-  bls = learner$base.learners
-  use.feat = learner$use.feat
-  # cross-validate all base learners and get a prob vector for the whole dataset for each learner
-  rin = makeResampleInstance(learner$resampling, task = task)
-  # parallelMap
-  parallelLibrary("mlr", master = FALSE, level = "mlr.stack", show.info = FALSE)
-  exportMlrOptions(level = "mlr.stack")
-  results = parallelMap(doResampleTrain, bls, more.args = list(task, rin), impute.error = function(x) x)
-
-  base.models = lapply(results, function(x) x[["base.models"]])
-  pred.data = lapply(results, function(x) try(getResponse(x[["resres"]]$pred, full.matrix = FALSE)))
-  
-  names(pred.data) = names(bls)
-  names(base.models) = names(bls)
-  tn = getTaskTargetNames(task)
-  pred.data[[tn]] = results[[1]]$resres$pred$data$truth
-
-  # Remove FailureModels which would occur problems later
-  broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
-  broke.idx.pd = which(unlist(lapply(pred.data, function(x) any(is.na(x)))))
-  broke.idx = unique(broke.idx.bm, broke.idx.pd)
-
-  if (length(broke.idx) > 0) {
-    messagef("Base Learner %s is broken and will be removed\n", names(bls)[broke.idx])
-    base.models = base.models[-broke.idx]
-    pred.data = pred.data[-broke.idx]
-  }
-  # convert list to
-  if (type == "regr" | type == "classif") {
-    pred.data = as.data.frame(pred.data)
-  } else {
-    pred.data = as.data.frame(lapply(pred.data, function(X) X)) #X[,-ncol(X)]))
-  }
-  if (use.feat) {
-    # add data with normal features IN CORRECT ORDER
-    org.feat = getTaskData(task)#[test.inds, ]
-    org.feat = org.feat[, !colnames(org.feat) %in% tn, drop = FALSE]
-    pred.data = cbind(pred.data, org.feat)
-    super.task = makeSuperLearnerTask(learner$super.learner$type, data = pred.data, target = tn)
-  } else {
-    super.task = makeSuperLearnerTask(learner$super.learner$type, data = pred.data, target = tn)
-  }
-  #message(getTaskDescription(task))
-  #message(na_count(getTaskData(super.task)))
-  messagef("Super learner '%s' will be trained with %s features and %s observations", learner$super.learner$id, getTaskNFeats(super.task), getTaskSize(super.task))
-  super.model = train(learner$super.learner, super.task)
-
-  list(method = "stack.cv", base.models = base.models,
-       super.model = super.model, pred.train = pred.data)
-}
-
-hillclimbBaseLearners0 = function(learner, task, replace = TRUE, init = 0, bagprob = 1, bagtime = 1,
-  metric = NULL, ...) {
-
-  assertFlag(replace)
-  assertInt(init, lower = 1, upper = length(learner$base.learners)) #807
-  assertNumber(bagprob, lower = 0, upper = 1)
-  assertInt(bagtime, lower = 1)
-  if (init > 0 & class(metric) == "Measure")
-    stop("'metric' only implemented for init = 0. Set 'metric = NULL' or 'init = 0'")
-
-
-  td = getTaskDescription(task)
-  type = ifelse(td$type == "regr", "regr",
-                ifelse(length(td$class.levels) == 2L, "classif", "multiclassif"))
-  if (is.null(metric)) {
-    if (type == "regr") {
-      metric = function(pred, true) mean((pred-true)^2)
-    } else {
-      metric = function(pred, true) {
-        pred = colnames(pred)[max.col(pred)]
-        tb = table(pred, true)
-        return( 1- sum(diag(tb))/sum(tb) )
-      }
-    }
-  #} else {
-  #  assertClass(metric, "Measure")
-  #  metric = metric$fun # new
-  }
-
-  bls = learner$base.learners
-  if (type != "regr") {
-    if (any(extractSubList(bls, "predict.type") == "response"))
-      stop("Hill climbing algorithm only takes probability predict type for classification.")
-  }
-  # cross-validate all base learners and get a prob vector for the whole dataset for each learner
-  #base.models = resres = 
-  pred.data = vector("list", length(bls)) #new
-  rin = makeResampleInstance(learner$resampling, task = task)
-  # parallelMap
-  parallelLibrary("mlr", master = FALSE, level = "mlr.stack", show.info = FALSE)
-  exportMlrOptions(level = "mlr.stack")
-  results = parallelMap(doResampleTrain, bls, more.args = list(task, rin), impute.error = function(x) x)
-  
-  resres = lapply(results, function(x) x[["resres"]])
-  base.models = lapply(results, function(x) x[["base.models"]])
-  #pred.data = lapply(results, function(x) try(getResponse(x[["resres"]]$pred, full.matrix = T)))
-  # as before:
-  for (i in seq_along(bls)) {
-    r = resres[[i]]
-    if (type == "regr") {
-      pred.data[[i]] = matrix(getResponse(r$pred, full.matrix = TRUE), ncol = 1)
-    } else {
-      pred.data[[i]] = getResponse(r$pred, full.matrix = TRUE)
-      colnames(pred.data[[i]]) = task$task.desc$class.levels
-    }
-  }
-
-  #for (i in seq_along(bls)) {
-  #  bl = bls[[i]]
-  #  resres[[i]] = r = resample(bl, task, rin, show.info = FALSE) #new
-  #  if (type == "regr") {
-  #    pred.data[[i]] = matrix(getResponse(r$pred, full.matrix = TRUE), ncol = 1)
-  #  } else {
-  #    pred.data[[i]] = getResponse(r$pred, full.matrix = TRUE)
-  #    colnames(pred.data[[i]]) = task$task.desc$class.levels
-  #  }
-  #  # also fit all base models again on the complete original data set
-  #  base.models[[i]] = train(bl, task) #FIXME
-  #
-  #}
-  names(resres) = names(bls)
-  names(base.models) = names(bls) #new
-
-  # Remove FailureModels which would occur problems later
-  broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
-  broke.idx.pd = which(unlist(lapply(pred.data, function(x) anyNA(x))))
-  broke.idx = unique(broke.idx.bm, broke.idx.pd)
-
-  if (length(broke.idx) > 0) {
-    messagef("Base Learner %s is broken and will be removed\n", names(bls)[broke.idx])
-    resres = resres[-broke.idx, drop = FALSE]
-    pred.data = pred.data[-broke.idx, drop = FALSE]
-    base.models = base.models[-broke.idx, drop = FALSE]
-  }
-  # add true target column IN CORRECT ORDER
-  tn = getTaskTargetNames(task)
-  test.inds = unlist(rin$test.inds)
-
-  # now start the hill climbing
-  pred.data = lapply(pred.data, function(x) x[order(test.inds), , drop = FALSE])
-  pred.data[[tn]] = getTaskTargets(task)[test.inds]
-  pred.data[[tn]] = pred.data[[tn]][order(test.inds)]
-  # pred.data = pred.data[order(test.inds), , drop = FALSE]
-  m = length(resres)
-  weights = rep(0, m)
-  flag = TRUE
-  for (bagind in 1:bagtime) {
-    # bagging of models
-    bagsize = ceiling(m*bagprob)
-    bagmodel = sample(1:m, bagsize)
-    bagweight = rep(0, m) #807
-
-    # Initial selection of strongest learners
-    inds = NULL
-    if (init > 0) {
-      score = rep(Inf, m)
-      for (i in bagmodel) {
-        if (class(metric) != "Measure") {
-          score[i] = metric(pred.data[[i]], pred.data[[tn]])
-        } else {
-          assertClass(metric, "Measure")
-          score[i] = metric$fun(task, model = base.models[[i]], pred = resres[[i]]$pred) #new
-        }
-      }
-      inds = order(score)[1:init]
-      bagweight[inds] = 1 #807
-    }
-
-    selection.size = init
-    selection.ind = inds
-    # current.prob = rep(0, nrow(pred.data))
-    current.prob = matrix(0, nrow(pred.data[[1]]), ncol(pred.data[[1]]))
-    old.score = Inf
-    if (selection.size > 0) {
-      current.prob = Reduce('+', pred.data[selection.ind])
-      old.score = metric(current.prob/selection.size, pred.data[[tn]]) #todo-metric
-    }
-    flag = TRUE
-
-    while (flag) {
-      score = rep(Inf, m)
-      for (i in bagmodel) {
-        if (class(metric) == "function") { #new
-          score[i] = metric((pred.data[[i]]+current.prob)/(selection.size+1), pred.data[[tn]]) #new
-        } else { # new
-          assertClass(metric, "Measure")
-          score[i] = metric$fun(task, model = base.models[[i]], pred = resres[[i]]$pred) #new FIXME!
-        }
-      }
-      inds = order(score)
-      if (!replace) {
-        ind = setdiff(inds, selection.ind)[1]
-      } else {
-        ind = inds[1]
-      }
-
-      new.score = score[ind]
-      if (old.score - new.score < 1e-8) {
-        flag = FALSE
-      } else {
-        current.prob = current.prob + pred.data[[ind]]
-        weights[ind] = weights[ind] + 1
-        selection.ind = c(selection.ind, ind)
-        selection.size = selection.size + 1
-        old.score = new.score
-      }
-    }
-    weights = weights + bagweight #807
-  }
-  # FIXME: choose one: freq or weights
-  freq = weights
-  names(freq) = names(resres)
-  weights = weights/sum(weights)
-  names(weights) = names(resres)
-  
-  list(method = "hill.climb0", base.models = base.models, super.model = NULL,
-       pred.train = pred.data, weights = weights, freq = freq)
-}
 
 # TODOs:
 # - document + test + export

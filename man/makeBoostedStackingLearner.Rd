@@ -6,7 +6,7 @@
 \usage{
 makeBoostedStackingLearner(model.multiplexer = mm, predict.type = "prob",
   resampling = cv2, mm.ps = ps, control = ctrl, measures = mmce,
-  niter = 2L)
+  niter = 2L, tolerance = 1e-08)
 }
 \arguments{
 \item{model.multiplexer}{[\code{\link{ModelMultiplexer}}]\cr
@@ -28,6 +28,9 @@ Control object for search method.}
 
 \item{niter}{[\code{integer}]\cr
 Number of boosting iterations.}
+
+\item{tolerance}{[\code{numeric}]\cr
+Tolerance for stopping criterion.}
 
 \item{measure}{[\code{\link{Measure}}]\cr
 Performance measure.}

@@ -9,14 +9,14 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) { # FI
     ifelse(length(td$class.levels) == 2L, "classif", "multiclassif"))
   method = .learner$method
   # average/hill.climb
-  if (method %in% c("average", "hill.climb2")) {
+  if (method %in% c("average", "hill.climb")) {
     pred.list = getStackedBaseLearnerPredictions(model = .model, newdata = .newdata, type = "pred")
     if (method == "average") {
       final.pred = aggregatePredictions(pred.list, spt = sm.pt)
     } else {
       freq = .model$learner.model$freq
-      pred.list1 = expandPredList(pred.list, freq = freq)
-      final.pred = aggregatePredictions(pred.list1, spt = sm.pt)
+      pred.list = expandPredList(pred.list, freq = freq)
+      final.pred = aggregatePredictions(pred.list, spt = sm.pt)
     }
   # stack.nocv stack.cv
   } else { 

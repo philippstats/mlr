@@ -1,21 +1,3 @@
-#' Creates learner from TuneResult (from ModelMultiplexer).
-#' 
-makeLearnerFromMMTuneResult = function(tune.res = res, base.learners = base.learners) {
-  # FIXME make me nicer
-  assertClass(tune.res, "TuneResult")
-  selected.learner = tune.res$x$selected.learner
-  lrn.length = nchar(selected.learner)
-  par.list = tune.res$x[-1]
-  par.names = substr(names(par.list), lrn.length + 2, nchar(names(par.list)))
-  names(par.list) = par.names
-  par.list.fix = base.learners[[selected.learner]]$par.vals
-  par.list = c(par.list, par.list.fix)
-  # makeLearner
-  setHyperPars(makeLearner(selected.learner, 
-    predict.type = tune.res$learner$predict.type, fix.factors.prediction = TRUE), 
-    par.vals = par.list)
-}
-
 #' Creates x best learners from ModelMultiplexer TuneResult.
 #' 
 #' @param tune.result [\code{\link{TuneResult}}]\cr
@@ -30,34 +12,51 @@ makeLearnerFromMMTuneResult = function(tune.res = res, base.learners = base.lear
 #' @export
 
 
-makeXBestLearnersFromMMTuneResult = function(tune.result, base.learners, x.best = 5, measure = mmce) {
-	# checks
+makeXBestLearnersFromMMTuneResult = function(tune.result, model.multiplexer, mm.ps = mm.ps, x.best = 5, measure = mmce) {
+  # checks
   assertClass(tune.result, "TuneResult")
+  assertClass(model.multiplexer, "ModelMultiplexer")
   assertClass(measure, "Measure")
-
-	# body
-	measure = paste0(measure$id, ".test.mean")
-	opt.grid = as.data.frame(tune.result$opt.path)
-	ord = order(opt.grid[, measure])
-	opt.grid = opt.grid[ord, ]
-	opt.grid = opt.grid[1:x.best, ]
-	lrns = vector("list", x.best)
-	for (i in 1:nrow(opt.grid)) {
-		cl = as.character(opt.grid[i, 1])
-		pars = opt.grid[i, -1]
-		pars = pars[, grepl(pattern = cl, names(pars)), drop = FALSE]
-		names(pars) = substr(names(pars), nchar(cl) + 2, nchar(names(pars)))
-		par.list = as.list(pars)
-  	par.list.fix = base.learners[[cl]]$par.vals
-  	idx = setdiff(names(par.list.fix), names(par.list))
-  	par.list.fin = c(par.list, par.list.fix[idx])
-  
-		lrns[[i]] = makeLearner(cl, id = paste(cl, i, sep = "."),
-			predict.type = tune.result$learner$predict.type,
-			fix.factors.prediction = tune.result$learner$fix.factors.prediction,
-			par.vals = par.list.fin)
-	}
-	lrns
+  # body
+  measure.name = paste0(measure$id, ".test.mean")
+  opt.grid = as.data.frame(trafoOptPath(tune.result$opt.path), stringsAsFactors = FALSE)
+  #FIXME minimize
+  if (measure$minimize) {
+    ord = order(opt.grid[, measure.name])[1:x.best]
+  } else {
+    ord = rev(order(opt.grid[, measure.name]))[1:x.best]
+  }
+  opt.grid = opt.grid[ord, ]
+  j = sapply(opt.grid, is.factor)
+  opt.grid[j] = lapply(opt.grid[j], as.character)
+  # checks2
+  if(NROW(opt.grid) < x.best) stopf("'x.best' is %s and cannot be set larger than the number of tuning results in '%s", x.best, quote(tune.result))
+  #
+  lrns = vector("list", x.best)
+  for (i in 1:nrow(opt.grid)) {
+    # get tuned parameter
+  	cl = as.character(opt.grid[i, 1])
+  	pars = opt.grid[i, grepl(pattern = cl, names(opt.grid)), drop = FALSE]
+  	pars.names.long = names(pars)
+  	pars.names = substr(names(pars), nchar(cl) + 2, nchar(names(pars)))
+  	names(pars) = pars.names
+  	pars.list = as.list(pars)
+  	# get and apply trafo
+  	#trafo = lapply(pars.names.long, function(x) mm.ps$pars[[x]]$trafo)
+  	#trafo = lapply(trafo, function(x) if(is.null(x)) {function(x) x} else x)
+  	#names(trafo) = pars.names
+  	#pars.list = Map(do.call, trafo, lapply(par.list[names(trafo)], list)) #mapply(do.call, trafo, lapply(par.list[names(trafo)], list))
+  	# get fix parameters, and final parameter set
+  	pars.list.fix = model.multiplexer$base.learners[[cl]]$par.vals
+  	idx = setdiff(names(pars.list.fix), names(pars.list))
+  	pars.fin = c(pars.list, pars.list.fix[idx])
+    # apply all parameters
+  	lrns[[i]] = makeLearner(cl, id = paste(cl, i, sep = "_"),
+  		predict.type = tune.result$learner$predict.type,
+  		fix.factors.prediction = tune.result$learner$fix.factors.prediction,
+  		par.vals = pars.fin)
+  }
+  lrns
 }
 
 
@@ -109,4 +108,23 @@ makeDataWithNewFeat = function(data, new.feat, feat.name, task.desc) {
 makeWrappedModel.BoostedStackingLearner = function(learner, learner.model, task.desc, subset, features, factor.levels, time) {
   x = NextMethod(x)
   addClasses(x, "BoostedStackingModel")
+}
+
+
+#' Creates learner from TuneResult (from ModelMultiplexer) (veraltet)
+#' 
+makeLearnerFromMMTuneResult = function(tune.res = res, base.learners = base.learners) {
+  # FIXME make me nicer
+  assertClass(tune.res, "TuneResult")
+  selected.learner = tune.res$x$selected.learner
+  lrn.length = nchar(selected.learner)
+  par.list = tune.res$x[-1]
+  par.names = substr(names(par.list), lrn.length + 2, nchar(names(par.list)))
+  names(par.list) = par.names
+  par.list.fix = base.learners[[selected.learner]]$par.vals
+  par.list = c(par.list, par.list.fix)
+  # makeLearner
+  setHyperPars(makeLearner(selected.learner, 
+                           predict.type = tune.res$learner$predict.type, fix.factors.prediction = TRUE), 
+               par.vals = par.list)
 }

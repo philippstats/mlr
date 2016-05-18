@@ -2,23 +2,23 @@ context("stack_base")
 
 checkStack = function(task, method, base, super, bms.pt, sm.pt, use.feat) {
   base = lapply(base, makeLearner, predict.type = bms.pt)
-  if (method %in% c("average", "hill.climb2")) {
+  if (method %in% c("average", "hill.climb")) {
     super = NULL
   } else {
     super = makeLearner(super, predict.type = sm.pt)
     # sm.pt = NULL
   }
-  if (method == "hill.climb2" && bms.pt == "response" && inherits(task, "ClassifTask")) return()
+  if (method == "hill.climb" && bms.pt == "response" && inherits(task, "ClassifTask")) return()
 
-  slrn = makeStackedLearner(base, super, method = method, use.feat = use.feat, predict.type = sm.pt)
-  tr = train(slrn, task)
+  stk = makeStackedLearner(base, super, method = method, use.feat = use.feat, predict.type = sm.pt)
+  tr = train(stk, task)
   pr = predict(tr, task)
 
   if (sm.pt == "prob") {
     expect_equal(ncol(pr$data[,grepl("prob", colnames(pr$data))]), length(getTaskClassLevels(task)))
   }
 
-  if (method %nin% c("stack.cv", "hill.climb2")) {
+  if (method %nin% c("stack.cv", "hill.climb")) {
     expect_equal(
       getStackedBaseLearnerPredictions(tr),
       getStackedBaseLearnerPredictions(tr, newdata = getTaskData(task))
@@ -39,12 +39,12 @@ test_that("Stacking works", {
       base = c("regr.rpart", "regr.lm", "regr.svm")
       super = "regr.randomForest"
     }
-    for (method in c("average", "stack.cv", "stack.nocv", "hill.climb2")) {
-      ufs = if (method %in% c("average", "hill.climb2")) FALSE else c(FALSE, TRUE)
+    for (method in c("average", "stack.cv", "stack.nocv", "hill.climb")) {
+      ufs = if (method %in% c("average", "hill.climb")) FALSE else c(FALSE, TRUE)
       for (use.feat in ufs) {
         for (sm.pt in pts) {
           for (bms.pt in pts) {
-            #cat(td$type, td$id, method, use.feat, sm.pt, bms.pt, fill = TRUE)
+            cat(td$type, td$id, method, use.feat, sm.pt, bms.pt, fill = TRUE)
             #messagef(method, base, super, bms.pt, sm.pt, use.feat)
             checkStack(task, method, base, super, bms.pt, sm.pt, use.feat)
           }
@@ -59,7 +59,7 @@ test_that("Stacking works with wrapped learners (#687)", {
   lrns = lapply(base, makeLearner)
   lrns = lapply(lrns, setPredictType, "prob")
   lrns[[1]] = makeFilterWrapper(lrns[[1]], fw.abs = 2)
-  m = makeStackedLearner(base.learners = lrns, predict.type = "prob", method = "hill.climb2")
+  m = makeStackedLearner(base.learners = lrns, predict.type = "prob", method = "hill.climb")
 })
 
 test_that("Parameters for hill climb works", {
@@ -76,12 +76,13 @@ test_that("Parameters for hill climb works", {
     for(bagprob in c(0.5, 1)) {
       for (replace in c(TRUE, FALSE)) {
         for (bagtime in c(1, 2, 10)) {
+          messagef("This is: %s, %s, %s, %s", init, bagprob, replace, bagtime)
           m = makeStackedLearner(base.learners = lrns, predict.type = "prob", 
-            method = "hill.climb2", parset = list(init = init, bagprob = bagprob, 
+            method = "hill.climb", parset = list(init = init, bagprob = bagprob, 
             bagtime = bagtime, replace = replace, metric = mmce))
           tmp = train(m, tsk)
           res = predict(tmp, tsk)
-          max.selected = (init + length(bls)) * bagtime
+          max.selected = (init + length(lrns)) * bagtime
           n.selected = sum(tmp$learner.model$freq)
           
           expect_equal(anyNA(tmp$learner.model$bls.performance), FALSE)
@@ -92,7 +93,8 @@ test_that("Parameters for hill climb works", {
     }
   } 
   # use other metric (auc)
-  m = makeStackedLearner(base.learners = lrns, predict.type = "prob", method = "hill.climb2",
+  messagef("Testing metric: auc")
+  m = makeStackedLearner(base.learners = lrns, predict.type = "prob", method = "hill.climb",
     parset = list(replace = TRUE, bagprob = 0.7, bagtime = 3, init = 2, metric = auc))
   tmp = train(m, tsk)
   res = predict(tmp, tsk)

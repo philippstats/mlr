@@ -36,8 +36,8 @@ If the type of the base learner prediction, which is set up within \code{base.le
 \dQuote{average} for averaging the predictions of the base learners,
 \dQuote{stack.nocv} for building a super learner using the predictions of the base learners,
 \dQuote{stack.cv} for building a super learner using crossvalidated predictions of the base learners.
-\dQuote{hill.climb} for averaging the predictions of the base learners, with the weights learned from
-hill climbing algorithm and
+\dQuote{hill.climb} (new implementation) for averaging the predictions of the base learners, with the weights learned from
+hill climbing algorithm and 
 \dQuote{compress} for compressing the model to mimic the predictions of a collection of base learners
 while speeding up the predictions and reducing the size of the model.
 Default is \dQuote{stack.nocv},}
@@ -78,18 +78,19 @@ The following stacking methods are available:
   \item{\code{stack.nocv}}{Fits the super learner, where in-sample predictions of the base learners are used.}
   \item{\code{stack.cv}}{Fits the super learner, where the base learner predictions are computed
   by crossvalidated predictions (the resampling strategy can be set via the \code{resampling} argument).}
-  \item{\code{hill.climb}}{Select a subset of base learner predictions by hill climbing algorithm.}
+  \item{\code{hill.climb}}{Select a subset of base learner predictions by hill climbing algorithm. (new implementation)}
   \item{\code{compress}}{Train a neural network to compress the model from a collection of base learners.}
  }
 }
 \examples{
+\dontrun{
   # Classification
   data(iris)
   tsk = makeClassifTask(data = iris, target = "Species")
   base = c("classif.rpart", "classif.lda", "classif.svm")
   lrns = lapply(base, makeLearner)
   lrns = lapply(lrns, setPredictType, "prob")
-  m = makeStackedLearner(base.learners = lrns, predict.type = "prob", method = "hill.climb", parset = list(init = 0, metric = mmce))
+  m = makeStackedLearner(base.learners = lrns, predict.type = "prob", method = "hill.climb", parset = list(init = 1, metric = mmce))
   tmp = train(m, tsk)
   res = predict(tmp, tsk)
 
@@ -98,8 +99,9 @@ The following stacking methods are available:
   tsk = makeRegrTask(data = BostonHousing, target = "medv")
   base = c("regr.rpart", "regr.svm")
   lrns = lapply(base, makeLearner)
-  m = makeStackedLearner(base.learners = lrns, predict.type = "response", method = "compress", parset = list(init = 0, metric = mmce))
+  m = makeStackedLearner(base.learners = lrns, predict.type = "response", method = "compress", parset = list(init = 1, metric = mae))
   tmp = train(m, tsk)
   res = predict(tmp, tsk)
+}
 }
 

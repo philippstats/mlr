@@ -47,7 +47,7 @@ test_that("Error handling if learner crashs (classif)", {
   for (spt in pts) {
     for (bt in bagtimes) {
       bls = lapply(bls, setPredictType, "prob")
-      stc = makeStackedLearner(bls, predict.type = spt, method = "hill.climb2",
+      stc = makeStackedLearner(bls, predict.type = spt, method = "hill.climb",
         parset = list(bagtime = bt))
       r = resample(stc, sp.task, cv2)
       expect_that(r$aggr, is_a("numeric")) 
