@@ -1,5 +1,5 @@
 hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagprob = 1, bagtime = 1,
-  metric = mmce, maxiter = NULL, tolerance = 1e-8, ...) {
+  metric = mmce, maxiter = "NULL", tolerance = 1e-8, ...) {
   # checks, inits
   assertFlag(replace)
   assertInt(init, lower = 0, upper = length(learner$base.learners)) #807
@@ -12,7 +12,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
                 ifelse(length(td$class.levels) == 2L, "classif", "multiclassif"))
 
   bls = learner$base.learners
-  if (is.null(maxiter)) maxiter = length(bls)
+  if (maxiter == "NULL") maxiter = length(bls)
   assertInt(maxiter, lower = 1)
   assertNumber(tolerance)
 
@@ -62,10 +62,12 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
     # bagging of models
     bagsize = ceiling(m * bagprob)
     bagmodel = sample(1:m, bagsize)
-    bagfreq = rep(0, m) #807
+    #bagfreq = rep(0, m) #807
 
     # Initial selection of strongest learners
     inds.init = NULL
+    inds.selected = NULL
+    sel.algo = NULL
     #if (init > 0) {
     single.scores = rep(ifelse(metric$minimize, Inf, -Inf), m)
     for (i in bagmodel) {
@@ -76,7 +78,8 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
     } else {
       inds.init = rev(order(single.scores))[1:init] 
     }
-    bagfreq[inds.init] = 1 #807
+    #bagfreq[inds.init] = 1 #807
+    freq[inds.init] = freq[inds.init] + 1  
     
     current.pred.list = pred.list[inds.init]
     current.pred = aggregatePredictions(current.pred.list)
@@ -86,21 +89,21 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
     inds.selected = inds.init
 
     #FIXME: nicht 2. gl BLs hintereinander (ist gewährleistet wenn tolerance > 0)
-    flag = TRUE
+    #flag = TRUE
     #iter.count = 1
     for (i in seq_along(maxiter)) {
     #while (flag) {
-      score = rep(ifelse(metric$minimize, Inf, -Inf), m)
+      temp.score = rep(ifelse(metric$minimize, Inf, -Inf), m)
       for (i in bagmodel) {
         temp.pred.list = append(current.pred.list, pred.list[i])
         aggr.pred = aggregatePredictions(temp.pred.list)
-        score[i] = metric$fun(pred = aggr.pred)
+        temp.score[i] = metric$fun(pred = aggr.pred)
       }
       # order
       if (metric$minimize) {
-        inds.ordered = order(score)
+        inds.ordered = order(temp.score)
       } else {
-        inds.ordered  = rev(order(score)) 
+        inds.ordered  = rev(order(temp.score)) 
       }
       if (!replace) {
         best.ind = setdiff(inds.ordered, inds.selected)[1]
@@ -108,23 +111,24 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
         best.ind = inds.ordered[1]
       }
       # take the 1 best pred
-      new.score = score[best.ind]
+      new.score = temp.score[best.ind]
       if (bench.score - new.score < tolerance) {
         break() # break inner loop #flag = FALSE
       } else {
         current.pred.list = append(current.pred.list, pred.list[best.ind])
         current.pred = aggregatePredictions(current.pred.list)
         freq[best.ind] = freq[best.ind] + 1
-        bench.score = new.score
         inds.selected = c(inds.selected, best.ind)
+        bench.score = new.score
         #iter.count = iter.count + 1
       }
       #if (iter.count >= maxiter) break()
     } # end while (now for)
-    freq = freq + bagfreq #807
+    #freq = freq + bagfreq #807
     sel.algo = names(base.models)[inds.selected]
     freq.list[[bagind]] = sel.algo
   }
+  
   weights = freq/sum(freq) #TODO: drop in future?
 
   # TODO current.pred gleich freq*bls gleich 

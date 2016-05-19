@@ -8,7 +8,7 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) { # FI
   type = ifelse(td$type == "regr", "regr",
     ifelse(length(td$class.levels) == 2L, "classif", "multiclassif"))
   method = .learner$method
-  # average/hill.climb
+  # average + hill.climb
   if (method %in% c("average", "hill.climb")) {
     pred.list = getStackedBaseLearnerPredictions(model = .model, newdata = .newdata, type = "pred")
     if (method == "average") {
@@ -18,9 +18,13 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) { # FI
       pred.list = expandPredList(pred.list, freq = freq)
       final.pred = aggregatePredictions(pred.list, spt = sm.pt)
     }
-  # stack.nocv stack.cv
+  # stack.nocv + stack.cv
   } else { 
     pred.data = getStackedBaseLearnerPredictions(model = .model, newdata = .newdata, type = "pred.data")
+    # remoce first level from multiclass prob predictions (Multicollinearity)
+    if (type == "multiclassif" && bms.pt == "prob") { #FIXME: only for "stats" methods
+      pred.data = lapply(pred.data, function(x) x[, -1])
+    }
     pred.data = as.data.frame(pred.data)
     if (use.feat) {
       #feat = .newdata[, colnames(.newdata) %nin% td$target, drop = FALSE] # TODO: there shouldn't be a target present in any case: feat = .newdata
