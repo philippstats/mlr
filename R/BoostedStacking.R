@@ -46,8 +46,8 @@
 
 #TODO: tol als parameter
 
-makeBoostedStackingLearner = function(model.multiplexer = mm, 
-  predict.type = "prob", resampling = cv2, mm.ps = ps, control = ctrl, 
+makeBoostedStackingLearner = function(model.multiplexer = mm, mm.ps = ps, 
+  control = ctrl, resampling = cv2, predict.type = "prob",
   measures = mmce, niter = 2L, tolerance = 1e-8) {
 	# do we need an id?
   # input checks
@@ -106,7 +106,7 @@ trainLearner.BoostedStackingLearner = function(.learner, .task, .subset, ...) {
   tolerance = .learner$tolerance
   
   for (i in seq_len(niter)) {
-    messagef("iter %s time: %s", i, Sys.time())
+    messagef("[Niter] Number %s time: %s", i, Sys.time())
     # Parameter Tuning
     res = tuneParams(learner = .learner$model.multiplexer, task = new.task, 
       resampling = .learner$resampling, measures = .learner$measures, 
@@ -135,6 +135,7 @@ trainLearner.BoostedStackingLearner = function(.learner, .task, .subset, ...) {
     best.lrn = makeXBestLearnersFromMMTuneResult(tune.result = res,
       model.multiplexer = .learner$model.multiplexer, mm.ps = .learner$mm.ps,
       x.best = 1, measure = .learner$measures) # FIXME x.best
+    messagef("Best Learner: %s", best.lrn$id)
     base.models[[i]] = train(best.lrn[[1]], new.task)
     preds[[i]] = resample(best.lrn[[1]], new.task, resampling = .learner$resampling, 
       measures = .learner$measures)
