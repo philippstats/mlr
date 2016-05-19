@@ -46,7 +46,9 @@
 
 #TODO: tol als parameter
 
-makeBoostedStackingLearner = function(model.multiplexer = mm, predict.type = "prob", resampling = cv2, mm.ps = ps, control = ctrl, measures = mmce, niter = 2L, tolerance = 1e-8) {
+makeBoostedStackingLearner = function(model.multiplexer = mm, 
+  predict.type = "prob", resampling = cv2, mm.ps = ps, control = ctrl, 
+  measures = mmce, niter = 2L, tolerance = 1e-8) {
 	# do we need an id?
   # input checks
 	# INSERT IT HERE

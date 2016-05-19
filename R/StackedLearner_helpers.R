@@ -69,14 +69,20 @@ rowiseRatio = function(pred.data, levels, model.weight = NULL) {
 
 
 # Training and prediction in one function (used for parallelMap)
-doTrainPredict = function(bls, task) {
-    model = train(bls, task)
-    pred = predict(model, task = task)
-    list(base.models = model, pred = pred)
+doTrainPredict = function(bls, task, show.info) {
+  setSlaveOptions()
+  if (show.info)
+    messagef("[Base Learner] %s is used", bls$id)
+  model = train(bls, task)
+  pred = predict(model, task = task)
+  list(base.models = model, pred = pred)
 }
 
 # Resampling and prediction in one function (used for parallelMap)
-doResampleTrain = function(bls, task, rin) {
+doResampleTrain = function(bls, task, rin, show.info) {
+  setSlaveOptions()
+  if (show.info)
+    messagef("[Base Learner] %s is used", bls$id)
   r = resample(bls, task, rin, show.info = FALSE)
   model = train(bls, task)
   list(resres = r, base.models = model)
