@@ -4,17 +4,16 @@
 \alias{makeBoostedStackingLearner}
 \title{Create a BoostedStacking object.}
 \usage{
-makeBoostedStackingLearner(model.multiplexer = mm, predict.type = "prob",
-  resampling = cv2, mm.ps = ps, control = ctrl, measures = mmce,
-  niter = 2L, tolerance = 1e-08)
+makeBoostedStackingLearner(model.multiplexer = mm, mm.ps = ps,
+  control = ctrl, resampling = cv2, predict.type = "prob",
+  measures = mmce, niter = 2L, tolerance = 1e-08)
 }
 \arguments{
 \item{model.multiplexer}{[\code{\link{ModelMultiplexer}}]\cr
 The muliplexer learner.}
 
-\item{predict.type}{[\code{character(1)}]\cr 
-Classification: \dQuote{response} (= labels) or \dQuote{prob} (= probabilities and labels by selecting the ones with maximal probability).
-Regression: \dQuote{response} (= mean response) or \dQuote{se} (= standard errors and mean response).}
+\item{control}{[\code{\link{TuneControlRandom}}]\cr
+Control object for search method.}
 
 \item{resampling}{[\code{\link{ResampleDesc}} \cr
  Resampling strategy.
@@ -23,8 +22,9 @@ Regression: \dQuote{response} (= mean response) or \dQuote{se} (= standard error
  Dependent parameters with a \code{requires} field must use \code{quote} and not
  \code{expression} to define it.}
 
-\item{control}{[\code{\link{TuneControlRandom}}]\cr
-Control object for search method.}
+\item{predict.type}{[\code{character(1)}]\cr 
+Classification: \dQuote{response} (= labels) or \dQuote{prob} (= probabilities and labels by selecting the ones with maximal probability).
+Regression: \dQuote{response} (= mean response) or \dQuote{se} (= standard errors and mean response).}
 
 \item{niter}{[\code{integer}]\cr
 Number of boosting iterations.}
