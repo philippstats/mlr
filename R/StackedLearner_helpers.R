@@ -79,12 +79,12 @@ doTrainPredict = function(bls, task, show.info) {
 }
 
 # Resampling and prediction in one function (used for parallelMap)
-doResampleTrain = function(bls, task, rin, show.info) {
+doTrainResample = function(bls, task, rin, show.info) {
   setSlaveOptions()
   if (show.info)
     messagef("[Base Learner] %s is used", bls$id)
-  r = resample(bls, task, rin, show.info = FALSE)
   model = train(bls, task)
+  r = resample(bls, task, rin, show.info = FALSE)
   list(resres = r, base.models = model)
 }
 

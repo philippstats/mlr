@@ -26,7 +26,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
   parallelLibrary("mlr", master = FALSE, level = "mlr.stacking", show.info = FALSE)
   exportMlrOptions(level = "mlr.stacking")
   show.info = getMlrOption("show.info")
-  results = parallelMap(doResampleTrain, bls, more.args = list(task, rin, show.info), impute.error = function(x) x, level = "mlr.stacking")
+  results = parallelMap(doTrainResample, bls, more.args = list(task, rin, show.info), impute.error = function(x) x, level = "mlr.stacking")
   
   resres = lapply(results, function(x) x[["resres"]])
   base.models = lapply(results, function(x) x[["base.models"]])

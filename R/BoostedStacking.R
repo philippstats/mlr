@@ -106,27 +106,21 @@ trainLearner.BoostedStackingLearner = function(.learner, .task, .subset, ...) {
   tolerance = .learner$tolerance
   
   for (i in seq_len(niter)) {
-    messagef("[Niter] Number %s time: %s", i, Sys.time())
+    #messagef("[Iteration] Number %", i, Sys.time())
     # Parameter Tuning
     res = tuneParams(learner = .learner$model.multiplexer, task = new.task, 
       resampling = .learner$resampling, measures = .learner$measures, 
-      par.set = .learner$mm.ps, control = .learner$control)
-    # IDEA: take best from every fold (i.e. anti-correlated/performs best on differnt input spaces/ bagging-like)
+      par.set = .learner$mm.ps, control = .learner$control, show.info = FALSE)# IDEA: take best from every fold (i.e. anti-correlated/performs best on differnt input spaces/ bagging-like)
     # Stopping criterium
     score[i+1] = res$y[1]
     names(score)[i+1] = paste(res$x$selected.learner, i, sep = ".")
     shift = score[i] - score[i+1]
-    #messagef(">shift is %s", shift)
-    #messagef(">tol is %s", tolerance)
     tol.reached = ifelse(.learner$measures$minimize, shift < tolerance, shift > tolerance)
     #messagef(">force.stop is %s", tol.reached)
     if (tol.reached) {
-      messagef("Boosting iterations stopped after %s niters", i)
+      messagef("[Tolerance Reached] Boosting stopped after %s iterations", i)
       to.rm = i:niter
-      #print(score)
-      #print(to.rm)
       score = score[-c(to.rm + 1)]
-      #print(score)
       base.models[to.rm] = NULL
       preds[to.rm] = NULL
       break()
@@ -138,7 +132,7 @@ trainLearner.BoostedStackingLearner = function(.learner, .task, .subset, ...) {
     messagef("Best Learner: %s", best.lrn$id)
     base.models[[i]] = train(best.lrn[[1]], new.task)
     preds[[i]] = resample(best.lrn[[1]], new.task, resampling = .learner$resampling, 
-      measures = .learner$measures)
+      measures = .learner$measures, show.info = FALSE)
     # create new task
     if (bms.pt == "prob") {
       new.feat = getPredictionProbabilities(preds[[i]]$pred)
@@ -198,5 +192,5 @@ predictLearner.BoostedStackingLearner = function(.learner, .model, .newdata, ...
 
 
 setPredictType.BoostedStackingLearner = function(learner, predict.type) {
-  
+  message("blabla")
 }
