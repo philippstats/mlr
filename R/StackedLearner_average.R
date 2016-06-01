@@ -6,7 +6,7 @@ averageBaseLearners = function(learner, task) {
   exportMlrOptions(level = "mlr.stacking")
   show.info = getMlrOption("show.info")
   results = parallelMap(doTrainPredict, bls, more.args = list(task, show.info), impute.error = function(x) x, level = "mlr.stacking")
-  
+#browser()  
   base.models = lapply(results, function(x) x[["base.models"]])
   pred.data = lapply(results, function(x) try(getResponse(x[["pred"]], full.matrix = TRUE))) #QUEST: Return Predictions instead of data.frame!?
   
