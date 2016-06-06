@@ -1,19 +1,21 @@
 # stacking where we crossval the training set with the base learners, then super-learn on that
 stackCV = function(learner, task) {
-  
   td = getTaskDescription(task)
   type = ifelse(td$type == "regr", "regr",
                 ifelse(length(td$class.levels) == 2L, "classif", "multiclassif"))
   bls = learner$base.learners
   bpt = unique(extractSubList(bls, "predict.type"))
   use.feat = learner$use.feat
+  id = learner$id
+  save.on.disc = learner$save.on.disc
   # cross-validate all base learners and get a prob vector for the whole dataset for each learner
   rin = makeResampleInstance(learner$resampling, task = task)
   # parallelMap
   parallelLibrary("mlr", master = FALSE, level = "mlr.stacking", show.info = FALSE)
   exportMlrOptions(level = "mlr.stacking")
   show.info = getMlrOption("show.info")
-  results = parallelMap(doTrainResample, bls, more.args = list(task, rin, show.info), impute.error = function(x) x, level = "mlr.stacking")
+  results = parallelMap(doTrainResample, bls, more.args = list(task, rin, show.info, id, save.on.disc), 
+      impute.error = function(x) x, level = "mlr.stacking")
   
   base.models = lapply(results, function(x) x[["base.models"]])
   pred.data = lapply(results, function(x) try(getResponse(x[["resres"]]$pred, full.matrix = FALSE))) # mulitclass: all; classif: only pos
@@ -28,9 +30,10 @@ stackCV = function(learner, task) {
   pred.data[[tn]] = results[[1]]$resres$pred$data$truth
   
   # Remove FailureModels which would occur problems later
-  broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
+  #broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
   broke.idx.pd = which(unlist(lapply(pred.data, function(x) anyNA(x))))
-  broke.idx = unique(broke.idx.bm, broke.idx.pd)
+  #broke.idx = unique(broke.idx.bm, broke.idx.pd)
+  broke.idx = broke.idx.pd
   
   if (length(broke.idx) > 0) {
     messagef("Base Learner %s is broken and will be removed\n", names(bls)[broke.idx])

@@ -70,30 +70,48 @@ rowiseRatio = function(pred.data, levels, model.weight = NULL) {
 
 #' Training and prediction in one function (used for parallelMap)
 #'
-doTrainPredict = function(bls, task, show.info) {
+doTrainPredict = function(bls, task, show.info, id, save.on.disc) {
   #print(options()$error)
   setSlaveOptions()
-  print("***************************")
-  if (show.info)
-    messagef("[Base Learner] %s is used", bls$id)
+  #print("***************************")
+  if (show.info) 
+    messagef("[Base Learner] %s is used. ", bls$id, .newline = ifelse(save.on.disc, FALSE, TRUE))
   model = train(bls, task)
-  print(model); print("------------")
   pred = predict(model, task = task)
-  print(pred); print("------------")
-  print(object.size(list(base.models = model, pred = pred)))
-  list(base.models = model, pred = pred)
+  
+  if (save.on.disc) {
+    model.id = paste("saved.model", id, bls$id, "RData", sep = ".")
+    saveRDS(model, file = model.id)
+    if (show.info)
+      messagef("Model saved as %s", model.id)
+    X = list(base.models = model.id, pred = pred)
+  } else {
+    X = list(base.models = model, pred = pred)
+  }
+  print(object.size(X))
+ X 
 }
 
 #' Resampling and prediction in one function (used for parallelMap)
 #' 
-doTrainResample = function(bls, task, rin, show.info) {
+doTrainResample = function(bls, task, rin, show.info, id, save.on.disc) {
   setSlaveOptions()
-  if (show.info)
+  if (show.info) 
     messagef("[Base Learner] %s is used", bls$id)
   model = train(bls, task)
   r = resample(bls, task, rin, show.info = FALSE)
-  print(object.size(list(resres = r, base.models = model)))
-  list(resres = r, base.models = model)
+
+  if (save.on.disc) {
+    model.id = paste("saved.model", id, bls$id, "RData", sep = ".")
+    saveRDS(model, file = model.id)
+    if (show.info) 
+      messagef("Model saved as %s", model.id, .newline = FALSE)
+    X = list(base.models = model.id, resres = r)
+  } else {
+    X = list(base.models = model, resres = r)
+  }
+  print(object.size(X))
+  X 
 }
 
 
@@ -119,3 +137,17 @@ orderScore = function(scores, minimize, init) {
     rev(order(scores))[1:init] 
   }
 }
+
+convertModelNameToBlsName = function(base.model.ids) {
+  id = substr(base.model.ids, 1, nchar(base.model.ids)-6) # remove .RData
+  id = unlist(strsplit(id, "[.]"))
+  if (id[1]!= "saved") stopf("Model Id '%s' must begin with 'saved.model'", base.model.ids)
+  id = paste(id[length(id)-1], id[length(id)], sep = ".")
+  id
+}
+
+removeAllBlsModels = function(id) {
+  all.objects = ls()
+  
+}
+

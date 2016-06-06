@@ -12,6 +12,8 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
                 ifelse(length(td$class.levels) == 2L, "classif", "multiclassif"))
 
   bls = learner$base.learners
+  id = learner$id
+  save.on.disc = learner$save.on.disc
   if (maxiter == "NULL") maxiter = length(bls)
   assertInt(maxiter, lower = 1)
   assertNumber(tolerance)
@@ -27,23 +29,25 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
   exportMlrOptions(level = "mlr.stacking")
   show.info = getMlrOption("show.info")
       #FIXME: only do resampling
-  results = parallelMap(doTrainResample, bls, more.args = list(task, rin, show.info), impute.error = function(x) x, level = "mlr.stacking")
+  results = parallelMap(doTrainResample, bls, more.args = list(task, rin, show.info, id, save.on.disc), 
+      impute.error = function(x) x, level = "mlr.stacking")
   
-  resres = lapply(results, function(x) x[["resres"]])
   base.models = lapply(results, function(x) x[["base.models"]])
+  resres = lapply(results, function(x) x[["resres"]])
   pred.list = lapply(resres, function(x) x[["pred"]])
   bls.performance = sapply(resres, function(x) x$aggr)
   
-  names(resres) = names(bls) 
   names(base.models) = names(bls)
+  names(resres) = names(bls) 
   names(pred.list) = names(bls)
   names(bls.performance) = names(bls) # this will not be removed below!
   
   # Remove FailureModels which would occur problems later
-  broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
+  #broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
   broke.idx.pl = which(unlist(lapply(pred.list, function(x) anyNA(x$data))))# FIXME?!
   broke.idx.rr = which(unlist(lapply(resres, function(x) anyNA(x$aggr))))
-  broke.idx = unique(c(broke.idx.bm, broke.idx.rr, broke.idx.pl))
+  #broke.idx = unique(c(broke.idx.bm, broke.idx.rr, broke.idx.pl))
+  broke.idx = unique(c(broke.idx.rr, broke.idx.pl))
 
   if (length(broke.idx) > 0) {
     messagef("Base Learner %s is broken and will be removed\n", names(bls)[broke.idx])

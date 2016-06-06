@@ -10,7 +10,7 @@ checkStack = function(task, method, base, super, bms.pt, sm.pt, use.feat) {
   }
   if (method == "hill.climb" && bms.pt == "response" && inherits(task, "ClassifTask")) return()
 
-  stk = makeStackedLearner(base, super, method = method, use.feat = use.feat, predict.type = sm.pt)
+  stk = makeStackedLearner(id = "stack", base, super, method = method, use.feat = use.feat, predict.type = sm.pt)
   tr = train(stk, task)
   pr = predict(tr, task)
 
@@ -59,7 +59,7 @@ test_that("Stacking works with wrapped learners (#687)", {
   lrns = lapply(base, makeLearner)
   lrns = lapply(lrns, setPredictType, "prob")
   lrns[[1]] = makeFilterWrapper(lrns[[1]], fw.abs = 2)
-  m = makeStackedLearner(base.learners = lrns, predict.type = "prob", method = "hill.climb")
+  m = makeStackedLearner(id = "stack", base.learners = lrns, predict.type = "prob", method = "hill.climb")
 })
 
 test_that("Parameters for hill climb works", {
@@ -77,7 +77,7 @@ test_that("Parameters for hill climb works", {
       for (replace in c(TRUE, FALSE)) {
         for (bagtime in c(1, 2, 10)) {
           messagef("This is: %s, %s, %s, %s", init, bagprob, replace, bagtime)
-          m = makeStackedLearner(base.learners = lrns, predict.type = "prob", 
+          m = makeStackedLearner(id = "stack", base.learners = lrns, predict.type = "prob", 
             method = "hill.climb", parset = list(init = init, bagprob = bagprob, 
             bagtime = bagtime, replace = replace, metric = mmce))
           tmp = train(m, tsk)
@@ -94,7 +94,7 @@ test_that("Parameters for hill climb works", {
   } 
   # use other metric (auc)
   messagef("Testing metric: auc")
-  m = makeStackedLearner(base.learners = lrns, predict.type = "prob", method = "hill.climb",
+  m = makeStackedLearner(id = "stack", base.learners = lrns, predict.type = "prob", method = "hill.climb",
     parset = list(replace = TRUE, bagprob = 0.7, bagtime = 3, init = 2, metric = auc))
   tmp = train(m, tsk)
   res = predict(tmp, tsk)

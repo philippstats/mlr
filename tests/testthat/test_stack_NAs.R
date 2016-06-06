@@ -22,7 +22,7 @@ test_that("Error handling if learner crashs (classif)", {
     for (spt in pts) {
       for (bpt in pts) {
         bls = lapply(bls, setPredictType, bpt)
-        sta = makeStackedLearner(bls, predict.type = spt, method = "average")
+        sta = makeStackedLearner(id = "stack", bls, predict.type = spt, method = "average")
         r=resample(sta, tsk, cv2)
         expect_that(r$aggr, is_a("numeric"))
         expect_that(r, is_a("ResampleResult"))
@@ -35,7 +35,7 @@ test_that("Error handling if learner crashs (classif)", {
     for (bpt in pts) {
       bls = lapply(bls, setPredictType, bpt)
       slr = makeLearner("classif.logreg")
-      stc = makeStackedLearner(bls, slr, predict.type = spt, method = "stack.cv")
+      stc = makeStackedLearner(id = "stack", bls, slr, predict.type = spt, method = "stack.cv")
       r = resample(stc, sp.task, cv2, extract = function(x) x$learner.model)
       expect_that(r$aggr, is_a("numeric"))
       expect_that(r, is_a("ResampleResult")) 
@@ -47,7 +47,7 @@ test_that("Error handling if learner crashs (classif)", {
   for (spt in pts) {
     for (bt in bagtimes) {
       bls = lapply(bls, setPredictType, "prob")
-      stc = makeStackedLearner(bls, predict.type = spt, method = "hill.climb",
+      stc = makeStackedLearner(id = "stack", bls, predict.type = spt, method = "hill.climb",
         parset = list(bagtime = bt))
       r = resample(stc, sp.task, cv2)
       expect_that(r$aggr, is_a("numeric")) 

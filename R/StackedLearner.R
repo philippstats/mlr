@@ -13,6 +13,7 @@
 #'   \item{\code{compress}}{Train a neural network to compress the model from a collection of base learners.}
 #'  }
 #'
+#' @param id [\code{character(1)}]  Id string for object. Used to display object and for model saving. Default is "stack".
 #' @param base.learners [(list of) \code{\link{Learner}}]\cr
 #'   A list of learners created with \code{makeLearner}.
 #' @param super.learner [\code{\link{Learner} | character(1)}]\cr
@@ -88,8 +89,8 @@
 #'   res = predict(tmp, tsk)
 #' }
 #' @export
-makeStackedLearner = function(base.learners, super.learner = NULL, predict.type = NULL,
-  method = "stack.nocv", use.feat = FALSE, resampling = NULL, parset = list()) {
+makeStackedLearner = function(id = "stack", base.learners, super.learner = NULL, predict.type = NULL,
+  method = "stack.nocv", use.feat = FALSE, resampling = NULL, parset = list(), save.on.disc = FALSE) {
   # checking
   if (is.character(base.learners)) base.learners = lapply(base.learners, checkLearner)
   #if (is.null(super.learner) && method == "compress") {
@@ -102,7 +103,9 @@ makeStackedLearner = function(base.learners, super.learner = NULL, predict.type 
 
   baseType = unique(extractSubList(base.learners, "type"))
   assertChoice(method, c("average", "stack.nocv", "stack.cv", "hill.climb","compress"))
-
+  assertCharacter(id, min.chars = 1)
+  assertLogical(save.on.disc, len = 1)
+  
   if (method %in% c("stack.cv", "hill.climb", "compress")) {
     if (is.null(resampling)) {
       resampling = makeResampleDesc("CV", iters = 5L, stratify = ifelse(baseType == "classif", TRUE, FALSE))
@@ -131,7 +134,7 @@ makeStackedLearner = function(base.learners, super.learner = NULL, predict.type 
   #  stop("Currently only CV is allowed for resampling!") # new
   # lrn$predict.type is "response" by default change it using setPredictType
   lrn =  makeBaseEnsemble(
-    id = "stack",
+    id = id,
     base.learners = base.learners,
     cl = "StackedLearner"
   )
@@ -148,6 +151,7 @@ makeStackedLearner = function(base.learners, super.learner = NULL, predict.type 
   lrn$super.learner = super.learner
   lrn$resampling = resampling
   lrn$parset = parset
+  lrn$save.on.disc = save.on.disc
   return(lrn)
 }
 
@@ -177,19 +181,34 @@ getStackedBaseLearnerPredictions = function(model, newdata = NULL, type = "pred.
     method = model$learner.model$method
     if (method == "hill.climb") {
       used.bls = names(which(model$learner.model$freq > 0))
+      #bms = model$learner.model$base.models[used.bls]
       bms = model$learner.model$base.models[used.bls]
     } else {
+      #bms = model$learner.model$base.models
       bms = model$learner.model$base.models
     }
     # if (model == "stack.cv") warning("Crossvalidated predictions for new data is not possible for this method.") # and not needes
     # predict prob vectors with each base model
     pred = pred.data = vector("list", length(bms))
-    for (i in seq_along(bms)) {
-      pred[[i]] = predict(bms[[i]], newdata = newdata)
-      pred.data[[i]] = getResponse(pred[[i]], full.matrix = ifelse(method %in% c("average", "hill.climb"), TRUE, FALSE))
+    if (model$learner$save.on.disc) {
+      for (i in seq_along(bms)) {
+        model = readRDS(bms[[i]])
+        pred[[i]] = predict(model, newdata = newdata)
+        pred.data[[i]] = getResponse(pred[[i]], full.matrix = ifelse(method %in% c("average", "hill.climb"), TRUE, FALSE))
+      }
+      bls.ids = sapply(bms, function(x) convertModelNameToBlsName(x))
+    } else {
+      for (i in seq_along(bms)) {
+        pred[[i]] = predict(bms[[i]], newdata = newdata)
+        pred.data[[i]] = getResponse(pred[[i]], full.matrix = ifelse(method %in% c("average", "hill.climb"), TRUE, FALSE))
+      }
+      bls.ids = sapply(bms, function(X) X$learner$id) #names(.learner$base.learners)
     }
-    names(pred.data) = sapply(bms, function(X) X$learner$id) #names(.learner$base.learners)
-    names(pred) = sapply(bms, function(X) X$learner$id) #names(.learner$base.learners)
+    #bls.ids = names(model$learner.model$base.models)
+    #bls.ids = sapply(bms, function(X) X$learner$id) #names(.learner$base.learners)
+    
+    names(pred) = bls.ids  #names(.learner$base.learners)
+    names(pred.data) = bls.ids
     
     # FIXME I don
     broke.idx.pd = which(unlist(lapply(pred.data, function(x) checkIfNullOrAnyNA(x))))
