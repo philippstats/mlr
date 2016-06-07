@@ -140,18 +140,20 @@ orderScore = function(scores, minimize, init) {
 
 convertModelNameToBlsName = function(base.model.ids) {
   id = substr(base.model.ids, 1, nchar(base.model.ids)-6) # remove .RData
-  id = unlist(strsplit(id, "[.]")) # split by "."
+  id = unlist(strsplit(id, "[.]")) # split by dot
   if (id[1]!= "saved") stopf("Model Id '%s' must begin with 'saved.model'", base.model.ids)
   id = id[-c(1:3)] #remove saved . models
   #id = paste(id[length(id)-1], id[length(id)], sep = ".")
-  id = cat(id, sep = ".")
+  #id = cat(id, sep = ".")
+  id = paste0(id, sep = ".", collapse = "")
+  id = substr(id, 1, nchar(id)-1) # remove last dot
   id
 }
 
 base.model.ids = "saved.model.stackES1.randomForest.RData"
 
-removeAllBlsModels = function(id) {
-  all.objects = ls()
-  
-}
 
+removeModelsOnDisc = function(stack.id = NULL, bls.ids = NULL) {
+  term = paste0("rm saved.model.", stack.id, "*", bls.ids, ".RData")
+  system(term)
+}
