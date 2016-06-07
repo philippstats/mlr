@@ -15,31 +15,35 @@ stackCV = function(learner, task) {
   exportMlrOptions(level = "mlr.stacking")
   show.info = getMlrOption("show.info")
   results = parallelMap(doTrainResample, bls, more.args = list(task, rin, show.info, id, save.on.disc), 
-      impute.error = function(x) x, level = "mlr.stacking")
+    impute.error = function(x) x, level = "mlr.stacking")
   
   base.models = lapply(results, function(x) x[["base.models"]])
-  pred.data = lapply(results, function(x) try(getResponse(x[["resres"]]$pred, full.matrix = FALSE))) # mulitclass: all; classif: only pos
+  pred.data = lapply(results, function(x) try(getResponse(x[["resres"]]$pred, 
+    full.matrix = FALSE), silent = TRUE)) # mulitclass: all; classif: only pos
 
-  if (type == "multiclassif" && bpt == "prob") { #FIXME: only for "stats" methods
-    pred.data = lapply(pred.data, function(x) x[, -1])
-  }
-                         
   names(pred.data) = names(bls)
   names(base.models) = names(bls)
-  tn = getTaskTargetNames(task)
-  pred.data[[tn]] = results[[1]]$resres$pred$data$truth
   
-  # Remove FailureModels which would occur problems later
+  # Remove broken models/predictions
   #broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
-  broke.idx.pd = which(unlist(lapply(pred.data, function(x) anyNA(x))))
+  broke.idx.pd1 = which(unlist(lapply(pred.data, function(x) anyNA(x))))
+  broke.idx.pd2 = which(unlist(lapply(pred.data, function(x) class(x) %nin% c("numeric", "factor", "data.frame"))))
   #broke.idx = unique(broke.idx.bm, broke.idx.pd)
-  broke.idx = broke.idx.pd
+  broke.idx = unique(c(broke.idx.pd1, broke.idx.pd2))
   
   if (length(broke.idx) > 0) {
     messagef("Base Learner %s is broken and will be removed\n", names(bls)[broke.idx])
     base.models = base.models[-broke.idx]
     pred.data = pred.data[-broke.idx]
   }
+  # remove 1st prediction for multiclassif due to multicollinearity reason
+  if (type == "multiclassif" && bpt == "prob") { #FIXME: only for "stats" methods
+    pred.data = lapply(pred.data, function(x) x[, -1])
+  }
+  
+  tn = getTaskTargetNames(task)
+  pred.data[[tn]] = results[[1]]$resres$pred$data$truth
+  
   # convert list to
   if (type == "regr" | type == "classif") {
     pred.data = as.data.frame(pred.data)

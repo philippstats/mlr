@@ -45,7 +45,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
   # Remove FailureModels which would occur problems later
   #broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
   broke.idx.pl = which(unlist(lapply(pred.list, function(x) anyNA(x$data))))# FIXME?!
-  broke.idx.rr = which(unlist(lapply(resres, function(x) anyNA(x$aggr))))
+  broke.idx.rr = which(unlist(lapply(resres, function(x) is.na(x$aggr[1]))))
   #broke.idx = unique(c(broke.idx.bm, broke.idx.rr, broke.idx.pl))
   broke.idx = unique(c(broke.idx.rr, broke.idx.pl))
 

@@ -11,7 +11,7 @@ averageBaseLearners = function(learner, task) {
 
   #base.models = lapply(results, function(x) x[["base.models"]])
   base.models = lapply(results, function(x) x[["base.models"]])
-  pred.data = lapply(results, function(x) try(getResponse(x[["pred"]], full.matrix = TRUE))) #QUEST: Return Predictions instead of data.frame!?
+  pred.data = lapply(results, function(x) try(getResponse(x[["pred"]], full.matrix = TRUE), silent = TRUE)) #QUEST: Return Predictions instead of data.frame!?
   
   #names(base.models) = names(bls)
   names(base.models) = names(bls)
@@ -19,13 +19,14 @@ averageBaseLearners = function(learner, task) {
   
   #FIXME: I don't know if it is the nicest way to remove bls 
   #broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
-  broke.idx.pd = which(unlist(lapply(pred.data, function(x) anyNA(x))))
+  broke.idx.pd1 = which(unlist(lapply(pred.data, function(x) anyNA(x)))) # if models is FailesModels and NAs are returend in a Prediction
+  broke.idx.pd2 = which(unlist(lapply(pred.data, function(x) class(x) %nin% c("numeric", "factor", "data.frame")))) # if model fails and error message is returned it is not class numeric (regr, binary classif) nor data.frame (multiclassif)
   #broke.idx = unique(broke.idx.bm, broke.idx.pd)
-  broke.idx = broke.idx.pd
+  broke.idx = unique(c(broke.idx.pd1, broke.idx.pd2))
   
   if (length(broke.idx) > 0) {
     messagef("Base Learner %s is broken and will be removed\n", names(bls)[broke.idx])
-    #base.models = base.models[-broke.idx]
+    base.models = base.models[-broke.idx]
     pred.data = pred.data[-broke.idx]
   }
   
