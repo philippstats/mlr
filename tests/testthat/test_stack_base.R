@@ -39,7 +39,7 @@ test_that("Stacking works", {
       base = c("regr.rpart", "regr.lm", "regr.svm")
       super = "regr.randomForest"
     }
-    for (method in c("average", "stack.cv", "stack.nocv", "hill.climb")) {
+    for (method in c("average", "stack.cv", "hill.climb")) {
       ufs = if (method %in% c("average", "hill.climb")) FALSE else c(FALSE, TRUE)
       for (use.feat in ufs) {
         for (sm.pt in pts) {
