@@ -123,7 +123,7 @@ test_that("Check makeXBestLearnersFromMMTuneResult", {
   ctrl = makeTuneControlRandom(maxit = 4L)
   set.seed(1)
   res = tuneParams(mm, tsk, cv2, par.set = mm.ps, 
-    measures = list(mmce, auc, f1, ppv), control = ctrl)
+    measures = mmce, control = ctrl)
   
   lrns = makeXBestLearnersFromMMTuneResult(res, mm, mm.ps, x.best = 3, measure = mmce)
 })

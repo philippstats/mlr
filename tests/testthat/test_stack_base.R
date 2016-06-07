@@ -11,6 +11,7 @@ checkStack = function(task, method, base, super, bms.pt, sm.pt, use.feat) {
   if (method == "hill.climb" && bms.pt == "response" && inherits(task, "ClassifTask")) return()
 
   stk = makeStackedLearner(id = "stack", base, super, method = method, use.feat = use.feat, predict.type = sm.pt)
+  #debugonce(trainLearner.StackedLearner)
   tr = train(stk, task)
   pr = predict(tr, task)
 
@@ -28,15 +29,16 @@ checkStack = function(task, method, base, super, bms.pt, sm.pt, use.feat) {
 
 test_that("Stacking works", {
   tasks = list(binaryclass.task, multiclass.task, regr.task)
+  #tasks = list(multiclass.task)
   for (task in tasks) {
     td = getTaskDescription(task)
     if (inherits(task, "ClassifTask")) {
       pts = c("response", "prob")
-      base = c("classif.rpart", "classif.lda", "classif.svm")
+      base = c("classif.rpart", "classif.randomForest", "classif.kknn")
       super = "classif.randomForest"
     } else {
       pts = "response"
-      base = c("regr.rpart", "regr.lm", "regr.svm")
+      base = c("regr.rpart", "regr.lm", "regr.kknn")
       super = "regr.randomForest"
     }
     for (method in c("average", "stack.cv", "hill.climb")) {
@@ -44,6 +46,8 @@ test_that("Stacking works", {
       for (use.feat in ufs) {
         for (sm.pt in pts) {
           for (bms.pt in pts) {
+            #source('~/Documents/Rdevelop/mlr/tests/testthat/helper_objects.R')
+            #method = "average"; use.feat = F; sm.pt = "prob"; bms.pt = "prob"
             cat(td$type, td$id, method, use.feat, sm.pt, bms.pt, fill = TRUE)
             #messagef(method, base, super, bms.pt, sm.pt, use.feat)
             checkStack(task, method, base, super, bms.pt, sm.pt, use.feat)
@@ -53,7 +57,7 @@ test_that("Stacking works", {
     }
   }
 })
-
+'
 test_that("Stacking works with wrapped learners (#687)", {
   base = c("classif.rpart")
   lrns = lapply(base, makeLearner)
@@ -101,4 +105,4 @@ test_that("Parameters for hill climb works", {
   expect_equal(anyNA(tmp$learner.model$bls.performance), FALSE)
   expect_equal(anyNA(res$data$response), FALSE)
 })
-
+'
