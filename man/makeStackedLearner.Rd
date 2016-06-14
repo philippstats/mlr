@@ -4,11 +4,13 @@
 \alias{makeStackedLearner}
 \title{Create a stacked learner object.}
 \usage{
-makeStackedLearner(base.learners, super.learner = NULL, predict.type = NULL,
-  method = "stack.nocv", use.feat = FALSE, resampling = NULL,
-  parset = list())
+makeStackedLearner(id = "stack", base.learners, super.learner = NULL,
+  predict.type = NULL, method = "stack.nocv", use.feat = FALSE,
+  resampling = NULL, parset = list(), save.on.disc = FALSE)
 }
 \arguments{
+\item{id}{[\code{character(1)}]  Id string for object. Used to display object and for model saving. Default is "stack".}
+
 \item{base.learners}{[(list of) \code{\link{Learner}}]\cr
 A list of learners created with \code{makeLearner}.}
 

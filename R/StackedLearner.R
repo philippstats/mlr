@@ -254,3 +254,11 @@ trainLearner.StackedLearner = function(.learner, .task, .subset, ...) {
 # - DONE: allow regression as well
 
 # getWeights
+
+
+# phr
+# TODOS
+# - presently the first predicions feature is removed for multiclass and prob 
+#   cases. this is done due multicoll reasons (especiallly glm methods whic hare 
+#   famous for stacking). allow that this first prediction is not removed. 
+#   learnsers like rF can hadle such cases. 

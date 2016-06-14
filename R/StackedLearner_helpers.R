@@ -35,8 +35,8 @@ getResponse = function(pred, full.matrix = NULL) {
 makeSuperLearnerTask = function(type, data, target) {
   keep.idx = colSums(is.na(data)) == 0
   data = data[, keep.idx, drop = FALSE]
-  if (getMlrOption("show.info"))
-    messagef("Feature '%s' will be removed\n", names(data)[!keep.idx])
+  if (getMlrOption("show.info") & (length(keep.idx) < ncol(data)))
+    warningf("Feature '%s' will be removed\n", names(data)[!keep.idx])
   #message((na_count(data)))
   if (type == "classif") {
     removeConstantFeatures(task = makeClassifTask(id = "level 1 data", 
@@ -88,18 +88,18 @@ doTrainPredict = function(bls, task, show.info, id, save.on.disc) {
   } else {
     X = list(base.models = model, pred = pred)
   }
-  print(object.size(X))
+  #print(paste(object.size(r)[1]/1000000, "MB"))
  X 
 }
 
 #' Resampling and prediction in one function (used for parallelMap)
 #' 
-doTrainResample = function(bls, task, rin, show.info, id, save.on.disc) {
+doTrainResample = function(bls, task, rin, measures, show.info, id, save.on.disc) {
   setSlaveOptions()
   if (show.info) 
     messagef("[Base Learner] %s is used", bls$id)
   model = train(bls, task)
-  r = resample(bls, task, rin, show.info = FALSE)
+  r = resample(bls, task, rin, measures, show.info = FALSE)
 
   if (save.on.disc) {
     model.id = paste("saved.model", id, bls$id, "RData", sep = ".")
@@ -110,7 +110,7 @@ doTrainResample = function(bls, task, rin, show.info, id, save.on.disc) {
   } else {
     X = list(base.models = model, resres = r)
   }
-  print(object.size(X))
+  #print(paste(object.size(r)[1]/1000000, "MB"))
   X 
 }
 

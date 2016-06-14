@@ -4,7 +4,7 @@
 \alias{doTrainPredict}
 \title{Training and prediction in one function (used for parallelMap)}
 \usage{
-doTrainPredict(bls, task, show.info)
+doTrainPredict(bls, task, show.info, id, save.on.disc)
 }
 \description{
 Training and prediction in one function (used for parallelMap)

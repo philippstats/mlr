@@ -14,7 +14,7 @@ stackCV = function(learner, task) {
   parallelLibrary("mlr", master = FALSE, level = "mlr.stacking", show.info = FALSE)
   exportMlrOptions(level = "mlr.stacking")
   show.info = getMlrOption("show.info")
-  results = parallelMap(doTrainResample, bls, more.args = list(task, rin, show.info, id, save.on.disc), 
+  results = parallelMap(doTrainResample, bls, more.args = list(task, rin, measures = getDefaultMeasure(task), show.info, id, save.on.disc), 
     impute.error = function(x) x, level = "mlr.stacking")
   
   base.models = lapply(results, function(x) x[["base.models"]])
@@ -61,7 +61,7 @@ stackCV = function(learner, task) {
   }
   #message(getTaskDescription(task))
   #message(na_count(getTaskData(super.task)))
-  messagef("Super learner '%s' will be trained with %s features and %s observations", learner$super.learner$id, getTaskNFeats(super.task), getTaskSize(super.task))
+  messagef("[Super Learner] Train %s with %s features on %s observations", learner$super.learner$id, getTaskNFeats(super.task), getTaskSize(super.task))
   super.model = train(learner$super.learner, super.task)
   
   list(method = "stack.cv", base.models = base.models,

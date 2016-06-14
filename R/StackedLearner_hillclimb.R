@@ -8,9 +8,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
   assertClass(metric, "Measure")
 
   td = getTaskDescription(task)
-  type = ifelse(td$type == "regr", "regr",
-                ifelse(length(td$class.levels) == 2L, "classif", "multiclassif"))
-
+  type = getPreciseTaskType(task) # "regr", "classif", "multiclassif"
   bls = learner$base.learners
   id = learner$id
   save.on.disc = learner$save.on.disc
@@ -28,21 +26,20 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
   parallelLibrary("mlr", master = FALSE, level = "mlr.stacking", show.info = FALSE)
   exportMlrOptions(level = "mlr.stacking")
   show.info = getMlrOption("show.info")
-      #FIXME: only do resampling
-  results = parallelMap(doTrainResample, bls, more.args = list(task, rin, show.info, id, save.on.disc), 
+  results = parallelMap(doTrainResample, bls, more.args = list(task, rin, measures = metric, show.info, id, save.on.disc), 
       impute.error = function(x) x, level = "mlr.stacking")
   
   base.models = lapply(results, function(x) x[["base.models"]])
   resres = lapply(results, function(x) x[["resres"]])
   pred.list = lapply(resres, function(x) x[["pred"]])
-  bls.performance = sapply(resres, function(x) x$aggr)
+  bls.performance = sapply(resres, function(x) x$aggr) # only use
   
   names(base.models) = names(bls)
   names(resres) = names(bls) 
   names(pred.list) = names(bls)
   names(bls.performance) = names(bls) # this will not be removed below!
   
-  # Remove FailureModels which would occur problems later
+  # Remove FailureModels which would occur problems later #FIXME!?
   #broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
   broke.idx.pl = which(unlist(lapply(pred.list, function(x) anyNA(x$data))))# FIXME?!
   broke.idx.rr = which(unlist(lapply(resres, function(x) is.na(x$aggr[1]))))
@@ -57,6 +54,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
     pred.list = pred.list[-broke.idx]
   }
 
+  # ensemble selection algo:
   m = length(base.models)
   freq = rep(0, m)
   names(freq) = names(base.models)
@@ -67,18 +65,18 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
     # bagging of models
     bagsize = ceiling(m * bagprob)
     bagmodel = sample(1:m, bagsize)
-    #bagfreq = rep(0, m) #807
 
     # Initial selection of strongest learners
     inds.init = NULL
     inds.selected = NULL
     sel.algo = NULL
-    #if (init > 0) {
     single.scores = rep(ifelse(metric$minimize, Inf, -Inf), m)
-    for (i in bagmodel) {
+    
+    # inner loop
+    for (i in bagmodel) { #FIX ME use apply
       single.scores[i] = bls.performance[i] #resres[[i]]$aggr
     }
-    if (metric$minimize) {
+    if (metric$minimize) { # FIXME use own func
       inds.init = order(single.scores)[1:init]
     } else {
       inds.init = rev(order(single.scores))[1:init] 

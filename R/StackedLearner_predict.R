@@ -32,8 +32,11 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) { # FI
       pred.data = cbind(pred.data, .newdata)
     } 
     sm = .model$learner.model$super.model
-    messagef("Super model '%s' will use %s features and %s observations for prediction", sm$id, NCOL(pred.data), NROW(pred.data))
-    messagef("There are %s NA in 'pred.data'", sum(is.na(pred.data)))
+    #browser()
+    messagef("[Super Learner] Predict %s with %s features on %s observations", sm$learner$id, NCOL(pred.data), NROW(pred.data))
+    #mgs = paste("[Super Learner] Predict", sm$task.desc$id, "with",  NCOL(pred.data), "features on", NROW(pred.data), "observations")
+    #message(mgs)
+    #messagef("There are %s NA in 'pred.data'", sum(is.na(pred.data)))
     final.pred = predict(sm, newdata = pred.data)
   }
   # return 
@@ -43,3 +46,6 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) { # FI
     return(final.pred$data$response) #getPredictionResponse?
   }
 }
+
+
+
