@@ -4,7 +4,7 @@
 \alias{doTrainResample}
 \title{Resampling and prediction in one function (used for parallelMap)}
 \usage{
-doTrainResample(bls, task, rin, show.info, id, save.on.disc)
+doTrainResample(bls, task, rin, measures, show.info, id, save.on.disc)
 }
 \description{
 Resampling and prediction in one function (used for parallelMap)

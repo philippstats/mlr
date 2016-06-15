@@ -6,11 +6,11 @@
 #' does not support resample objects with single broken base models (no error handling).
 #' 
 #' @param id [\code{character(1)}]\n Id.
-#' @param obj [\code{ResampleResult]\n Object using \code{StackedLearner} as Learner.
-#' @template arg_task
-#' @template arg_measures
+#' @param obj [\code{ResampleResult}]\n Object using \code{StackedLearner} as Learner.
 #' @param super.learner [\code{Learner}]\n New \code{super.learner} to apply.
 #' @param parset [\code{list}]\n List containing parameter for \code{hill.climb}. See \code{\link{makeStackedLearner}}.
+#' @template arg_task
+#' @template arg_measures
 #' @export
 #' @examples 
 #' tsk = pid.task
@@ -162,7 +162,7 @@ recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL
 
 #' Retrain super learner on new test task
 #' 
-#' @param obj [\code{ResampleResult]\n Object using \code{StackedLearner} as Learner.
+#' @param obj [\code{ResampleResult}]\n Object using \code{StackedLearner} as Learner.
 #' @param super.learner [\code{Learner}]\n New \code{super.learner} to apply.
 
 retrainSuperLearner = function(obj, super.learner) {
@@ -180,8 +180,8 @@ retrainSuperLearner = function(obj, super.learner) {
 
 #' Extract level 1 data from stacking resample and create a task
 #' 
-#' @param obj [\code{ResampleResult]\n Object using \code{StackedLearner} as Learner.
-#' @param as.task [\code{logical(1)]\n Specify if task or data.frame should be returned 
+#' @param obj [\code{ResampleResult}]\n Object using \code{StackedLearner} as Learner.
+#' @param as.task [\code{logical(1)}]\n Specify if task or data.frame should be returned. 
 
 extractLevel1Task = function(obj, as.task = TRUE) {
   assertClass(obj, "ResampleResult")
@@ -202,9 +202,9 @@ extractLevel1Task = function(obj, as.task = TRUE) {
 
 #' Create a Classif or Regr Task
 #' 
-#' @param type [\code{character(1)]\n Use "classif" for Classification and "regr" for regression. 
-#' @param data [\code{data.frame]\n  Data to use.
-#' @param target [\code{character(1)]\n Target to use.
+#' @param type [\code{character(1)}]\n Use "classif" for Classification and "regr" for regression. 
+#' @param data [\code{data.frame}]\n  Data to use.
+#' @param target [\code{character(1)}]\n Target to use.
  
 createTask = function(type, data, target) {
   if (type == "classif") {
