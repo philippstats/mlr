@@ -1,21 +1,47 @@
-#' Recombine stacking with new super learner (not yet implemented for "hill.climb")
+#' Recombine stacking with new super.learner for "super.learner" or new parset for "ens.sel"
 #' 
-#' Instead of train a new super learner in a resample just use recombine 
-#' which reuse the already done work from resample, i.e. reuse base models, 
-#' reuse level 1 data. This function does not support resample objects with single 
-#' broken base models.
+#' Instead of compute a whole new resampling procedure just use \code{recombine}. 
+#' \code{recombine} reuse the already done work from \code{resample}, i.e. 
+#' reuse already fittedbase models and reuse level 1 data. Note: This function 
+#' does not support resample objects with single broken base models (no error handling).
 #' 
 #' @param id [\code{character(1)}]\n Id.
 #' @param obj [\code{ResampleResult]\n Object using \code{StackedLearner} as Learner.
-#' @param super.learner [\code{Learner}]\n New \code{super.learner} to apply.
 #' @template arg_task
 #' @template arg_measures
+#' @param super.learner [\code{Learner}]\n New \code{super.learner} to apply.
+#' @param parset [\code{list}]\n List containing parameter for \code{hill.climb}. See \code{\link{makeStackedLearner}}.
 #' @export
+#' @examples 
+#' tsk = pid.task
+#' bls = list(makeLearner("classif.kknn", id = "k1"), 
+#'   makeLearner("classif.randomForest", id = "f1"),
+#'   makeLearner("classif.rpart", id = "r1", minsplit = 5),
+#'   makeLearner("classif.rpart", id = "r2", minsplit = 10),
+#'   makeLearner("classif.rpart", id = "r3", minsplit = 15),
+#'   makeLearner("classif.rpart", id = "r4", minsplit = 20),
+#'   makeLearner("classif.rpart", id = "r5", minsplit = 25)
+#' )
+#' bls = lapply(BLS, function(x) setPredictType(x, predict.type = "prob"))
+#' ste = makeStackedLearner(id = "stack", bls, resampling = cv3, 
+#'   predict.type = "prob", method = "hill.climb", parset = list(init = 1, 
+#'   bagprob = 0.5, bagtime = 3, metric = mmce))
+#' resres = resample(ste, tsk, cv5, models = TRUE) 
+#' re2 = recombine(obj = resres, task = tsk, parset = list(init = 2))
+#' re3 = recombine(obj = resres, task = tsk, measures = list(mmce), parset = list(prob = .2))
+#' re3 = recombine(obj = resres, task = tsk, measures = mmce, parset = list(prob = .2))
+#' re4 = recombine(obj = resres, task = tsk, measures = list(acc), parset = list(bagtime = 10))
+#' re5 = recombine(obj = resres, task = tsk, measures = list(mmce, acc), parset = list(init = 2, prob = .7, bagtime = 10))
+#' 
+#' sapply(list(resres, re2, re3, re4, re5), function(x) x$runtime)
+#' sapply(list(resres, re2, re3, re4, re5), function(x) x$aggr)
+
+
 
 recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL, parset = NULL) {
   ### checks 
   if (is.null(id))
-    id = paste("recombined", super.learner$id, sep = ".")
+    id = paste("recombined", super.learner$id, collapse = ".")
   assertClass(id, "character")
   assertClass(obj, "ResampleResult")
   #assertChoice(method, c("stack.cv", "hill.climb"))
@@ -32,10 +58,9 @@ recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL
   
   # method
   method = obj$models[[1]]$learner$method
-  if (method == "stack.cv" & any(class(super.learner) != "Learner"))
+  if (method == "stack.cv" & !any(class(super.learner) != "Learner")) # FIXME
     stopf("Method 'stack.cv' needs 'super.learner'")
-  #FIXME parset
-  
+
   ### pre
   type = getTaskType(task) 
   tn = getTaskTargetNames(task)
@@ -51,11 +76,11 @@ recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL
   base.models = lapply(seq_len(folds), function(x) obj$models[[x]]$learner.model$base.models)
   # get test idxs
   train.idxs = lapply(seq_len(folds), function(x) obj$models[[x]]$subset)
-  test.idxs = lapply(seq_len(folds), function(x) setdiff(1:task.size, train.idxs[[x]]))
+  test.idxs = lapply(seq_len(folds), function(x) setdiff(seq_len(task.size), train.idxs[[x]]))
   
   #
   if (method == "stack.cv") {
-    assertCharacter(method, "stack.cv")
+    assertCharacter(method, pattern = "stack.cv")
     ### get TEST level 1 data, i.e. apply bls from traning on testing data
     # train base models to obtain level 1 data for test parts
     test.level1.preds = vector("list", length = folds)
@@ -68,23 +93,20 @@ recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL
       }
       names(test.level1) = bls.names
       test.level1[[tn]] = getTaskTargets(task)[idxs]
-      
       test.level1.data = as.data.frame(test.level1)
       test.level1.task = createTask(type, data = test.level1.data, target = tn)
-      test.level1.preds[[i]] =  test.level1.task
+      test.level1.preds[[i]] = test.level1.task
     }
-    
     ### apply super.learner learner on TRAIN level 1 data to obtain models
     train.superlearner = retrainSuperLearner(obj, super.learner) # FIXME not whole obj
     ### apply models from above on TEST level 1 data
-    test.superlearner.preds = vector("list", length = folds)
-    for (i in seq_len(folds)) {
-      test.superlearner.preds[[i]] = predict(train.superlearner[[i]], test.level1.preds[[i]])
-    }
-    final.preds = test.superlearner.preds
-    
-    m = lapply(test.superlearner.preds, function(x) performance(x, measures = measures))
-
+    #test.superlearner.preds = vector("list", length = folds)
+    #for (i in seq_len(folds)) { #FIXME apply
+    #  test.superlearner.preds[[i]] = predict(train.superlearner[[i]], test.level1.preds[[i]])
+    #}
+    #final.preds = test.superlearner.preds
+    # test.superlearner.preds
+    final.preds = lapply(seq_len(folds), function(i) predict(train.superlearner[[i]], test.level1.preds[[i]]))
   } else { # end stack.cv / start hill.climb
     assertCharacter(method, pattern = "hill.climb")
     org.parset = obj$models[[1]]$learner$parset
@@ -118,12 +140,11 @@ recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL
       current.pred.list = expandPredList(current.pred.list, freq = freq)
       final.preds[[i]] = aggregatePredictions(pred.list = current.pred.list)
     }
-    m = lapply(final.preds, function(x) performance(x, measures = measures))
-    
   }
       
 
   ### measures and runtime
+  m = lapply(final.preds, function(x) performance(x, measures = measures))
   measure.test = as.data.frame(do.call(rbind, m))
   measure.test = cbind(iter = 1:NROW(measure.test), measure.test)
   aggr = colMeans(measure.test[, -1, drop = FALSE])
