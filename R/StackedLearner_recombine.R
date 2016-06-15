@@ -12,17 +12,23 @@
 #' @template arg_measures
 #' @export
 
-recombine = function(id = NULL, obj, super.learner = NULL, task, measures, parset) {
+recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL, parset = NULL) {
   ### checks 
   if (is.null(id))
     id = paste("recombined", super.learner$id, sep = ".")
   assertClass(id, "character")
   assertClass(obj, "ResampleResult")
   #assertChoice(method, c("stack.cv", "hill.climb"))
+  assertClass(task, "Task") # check if tasks from obj and tasks fits
+  if (is.null(measures))
+    measures = list(getDefaultMeasure(task))
+  if (class(measures) == "Measure")
+    measures = list(measures)
+  lapply(measures, function(x) assertClass(x, "Measure"))
   if (!is.null(super.learner)) 
     assertClass(super.learner, "Learner")
-  assertClass(task, "Task") # check if tasks from obj and tasks fits
-  lapply(measures, function(x) assertClass(x, "Measure"))
+  if (!is.null(parset)) 
+    assertClass(parset, "list")
   
   # method
   method = obj$models[[1]]$learner$method
@@ -40,15 +46,17 @@ recombine = function(id = NULL, obj, super.learner = NULL, task, measures, parse
   task.size = getTaskSize(task)
   
   time1 = Sys.time()
+  
+  # get base models
+  base.models = lapply(seq_len(folds), function(x) obj$models[[x]]$learner.model$base.models)
+  # get test idxs
+  train.idxs = lapply(seq_len(folds), function(x) obj$models[[x]]$subset)
+  test.idxs = lapply(seq_len(folds), function(x) setdiff(1:task.size, train.idxs[[x]]))
+  
   #
   if (method == "stack.cv") {
     assertCharacter(method, "stack.cv")
     ### get TEST level 1 data, i.e. apply bls from traning on testing data
-    # get base models
-    base.models = lapply(seq_len(folds), function(x) obj$models[[x]]$learner.model$base.models)
-    # get test idxs
-    train.idxs = lapply(seq_len(folds), function(x) obj$models[[x]]$subset)
-    test.idxs = lapply(seq_len(folds), function(x) setdiff(1:task.size, train.idxs[[x]]))
     # train base models to obtain level 1 data for test parts
     test.level1.preds = vector("list", length = folds)
     for (i in seq_len(folds)) {
@@ -86,12 +94,7 @@ recombine = function(id = NULL, obj, super.learner = NULL, task, measures, parse
     
     preds = lapply(seq_len(folds), function(x) obj$models[[x]]$learner.model$pred.train)
     perfs = lapply(seq_len(folds), function(x) obj$models[[x]]$learner.model$bls.performance)
-#browser()    
-    # get base models
-    base.models = lapply(seq_len(folds), function(x) obj$models[[x]]$learner.model$base.models)
-    # get test idxs
-    train.idxs = lapply(seq_len(folds), function(x) obj$models[[x]]$subset)
-    test.idxs = lapply(seq_len(folds), function(x) setdiff(1:task.size, train.idxs[[x]]))
+
     ## predict on new test data
     # train base models to obtain level 1 data for test parts
     test.level1.preds = vector("list", length = folds)
@@ -131,7 +134,7 @@ recombine = function(id = NULL, obj, super.learner = NULL, task, measures, parse
   
   ### return
   X = list(learner.id = id, task.id = tsk$task.desc$id, measure.test = measure.test, aggr = aggr, pred = final.preds, 
-       runtime = runtime)
+       runtime = runtime, super.learner = super.learner, parset = parset)
   class(X) = "RecombinedResampleResult"
   X
 }
