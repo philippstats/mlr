@@ -9,7 +9,7 @@
 aggregatePredictions = function(pred.list, spt = NULL) {
   # return pred if list only contains one pred
   if (length(pred.list) == 1) {
-    messagef("'pred.list' has only one prediction and returns that one unlisted. Argument 'spt' will not be applied.")
+    #messagef("'pred.list' has only one prediction and returns that one unlisted. Argument 'spt' will not be applied.")
     return(pred.list[[1]])
   }
   # Check if "equal"
