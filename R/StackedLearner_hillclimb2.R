@@ -1,8 +1,7 @@
 # ensemble selection algo:
 
-applyEnsembleSelection = function(bls.length = bls.length, 
-  bls.names = bls.names, pred.list = pred.list, 
-  bls.performance = bls.performance, parset = parset) {
+applyEnsembleSelection = function(pred.list = pred.list, bls.length = bls.length,
+  bls.names = bls.names, bls.performance = bls.performance, parset = parset) {
   
   # parset
   assertClass(parset, "list")

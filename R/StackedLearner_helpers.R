@@ -150,7 +150,7 @@ convertModelNameToBlsName = function(base.model.ids) {
   id
 }
 
-base.model.ids = "saved.model.stackES1.randomForest.RData"
+#base.model.ids = "saved.model.stackES1.randomForest.RData"
 
 
 removeModelsOnDisc = function(stack.id = NULL, bls.ids = NULL) {

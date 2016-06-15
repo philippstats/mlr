@@ -1,18 +1,19 @@
 hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagprob = 1, bagtime = 1,
-  metric = mmce, maxiter = "NULL", tolerance = 1e-8, ...) {
+  metric = NULL, maxiter = NULL, tolerance = 1e-8, ...) {
   # checks, inits
   assertFlag(replace)
-  assertInt(init, lower = 0, upper = length(learner$base.learners)) #807
+  assertInt(init, lower = 1, upper = length(learner$base.learners)) #807
   assertNumber(bagprob, lower = 0, upper = 1)
   assertInt(bagtime, lower = 1)
+  if (is.null(metric)) metric = getDefaultMeasure(task)
   assertClass(metric, "Measure")
-
+  
   td = getTaskDescription(task)
   type = getPreciseTaskType(task) # "regr", "classif", "multiclassif"
   bls = learner$base.learners
   id = learner$id
   save.on.disc = learner$save.on.disc
-  if (maxiter == "NULL") maxiter = length(bls)
+  if (is.null(maxiter)) maxiter = length(bls)
   assertInt(maxiter, lower = 1)
   assertNumber(tolerance)
 
@@ -33,7 +34,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
   resres = lapply(results, function(x) x[["resres"]])
   pred.list = lapply(resres, function(x) x[["pred"]])
   bls.performance = sapply(resres, function(x) x$aggr) # only use
-  
+#browser()  
   names(base.models) = names(bls)
   names(resres) = names(bls) 
   names(pred.list) = names(bls)
@@ -54,89 +55,15 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
     pred.list = pred.list[-broke.idx]
   }
 
-  # ensemble selection algo:
-  m = length(base.models)
-  freq = rep(0, m)
-  names(freq) = names(base.models)
-  flag = TRUE
-  freq.list = vector("list", bagtime)
+  ensel = applyEnsembleSelection(pred.list = pred.list,
+    bls.length = length(base.models), bls.names = names(base.models), 
+    bls.performance = bls.performance, parset = list(replace = replace, 
+    init = init, bagprob = bagprob, bagtime = bagtime, maxiter = maxiter, 
+    metric = metric, tolerance = tolerance))
   
-  for (bagind in seq_len(bagtime)) {
-    # bagging of models
-    bagsize = ceiling(m * bagprob)
-    bagmodel = sample(1:m, bagsize)
-
-    # Initial selection of strongest learners
-    inds.init = NULL
-    inds.selected = NULL
-    sel.algo = NULL
-    single.scores = rep(ifelse(metric$minimize, Inf, -Inf), m)
-    
-    # inner loop
-    for (i in bagmodel) { #FIX ME use apply
-      single.scores[i] = bls.performance[i] #resres[[i]]$aggr
-    }
-    if (metric$minimize) { # FIXME use own func
-      inds.init = order(single.scores)[1:init]
-    } else {
-      inds.init = rev(order(single.scores))[1:init] 
-    }
-    #bagfreq[inds.init] = 1 #807
-    freq[inds.init] = freq[inds.init] + 1  
-    
-    current.pred.list = pred.list[inds.init]
-    current.pred = aggregatePredictions(current.pred.list)
-    bench.score = metric$fun(pred = current.pred)
-
-    #FIXME: maybe i will need them
-    inds.selected = inds.init
-
-    #FIXME: nicht 2. gl BLs hintereinander (ist gewährleistet wenn tolerance > 0)
-    #flag = TRUE
-    #iter.count = 1
-    for (i in seq_along(maxiter)) {
-    #while (flag) {
-      temp.score = rep(ifelse(metric$minimize, Inf, -Inf), m)
-      for (i in bagmodel) {
-        temp.pred.list = append(current.pred.list, pred.list[i])
-        aggr.pred = aggregatePredictions(temp.pred.list)
-        temp.score[i] = metric$fun(pred = aggr.pred)
-      }
-      # order
-      if (metric$minimize) {
-        inds.ordered = order(temp.score)
-      } else {
-        inds.ordered  = rev(order(temp.score)) 
-      }
-      if (!replace) {
-        best.ind = setdiff(inds.ordered, inds.selected)[1]
-      } else {
-        best.ind = inds.ordered[1]
-      }
-      # take the 1 best pred
-      new.score = temp.score[best.ind]
-      if (bench.score - new.score < tolerance) {
-        break() # break inner loop #flag = FALSE
-      } else {
-        current.pred.list = append(current.pred.list, pred.list[best.ind])
-        current.pred = aggregatePredictions(current.pred.list)
-        freq[best.ind] = freq[best.ind] + 1
-        inds.selected = c(inds.selected, best.ind)
-        bench.score = new.score
-        #iter.count = iter.count + 1
-      }
-      #if (iter.count >= maxiter) break()
-    } # end while (now for)
-    #freq = freq + bagfreq #807
-    sel.algo = names(base.models)[inds.selected]
-    freq.list[[bagind]] = sel.algo
-  }
-  
-  weights = freq/sum(freq) #TODO: drop in future?
-
   # TODO current.pred gleich freq*bls gleich 
   # pred.list is list of Predictions, no data.frame, but I would say that is not needed
   list(method = "hill.climb", base.models = base.models, super.model = NULL,
     pred.train = pred.list, bls.performance = bls.performance, 
-    weights = weights, freq = freq, freq.list = freq.list)
+    weights = ensel$weights, freq = ensel$freq, freq.list = ensel$freq.list)
 }
