@@ -67,12 +67,13 @@ recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL
   bls.length = length(obj$models[[1]]$learner.model$base.models)
   bls.names = names(obj$models[[1]]$learner.model$base.models)
   folds = length(obj$models)
-  bms.pt = unique(unlist(lapply(seq_len(bls.length), function(x) obj$models[[1]]$learner.model$base.models[[x]]$learner$predict.type)))
+  bms.pt = unique(unlist(lapply(seq_len(bls.length), function(x) obj$models[[1]]$learner$base.models[[x]]$predict.type)))
   task.size = getTaskSize(task)
+  save.on.disc = obj$models[[1]]$learner$save.on.disc
   
   time1 = Sys.time()
   
-  # get base models
+  # get base models (may be WrappedModels or names directing to RData)
   base.models = lapply(seq_len(folds), function(x) obj$models[[x]]$learner.model$base.models)
   # get test idxs
   train.idxs = lapply(seq_len(folds), function(x) obj$models[[x]]$subset)
@@ -100,12 +101,6 @@ recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL
     ### apply super.learner learner on TRAIN level 1 data to obtain models
     train.superlearner = retrainSuperLearner(obj, super.learner) # FIXME not whole obj
     ### apply models from above on TEST level 1 data
-    #test.superlearner.preds = vector("list", length = folds)
-    #for (i in seq_len(folds)) { #FIXME apply
-    #  test.superlearner.preds[[i]] = predict(train.superlearner[[i]], test.level1.preds[[i]])
-    #}
-    #final.preds = test.superlearner.preds
-    # test.superlearner.preds
     final.preds = lapply(seq_len(folds), function(i) predict(train.superlearner[[i]], test.level1.preds[[i]]))
   } else { # end stack.cv / start hill.climb
     assertCharacter(method, pattern = "hill.climb")
@@ -122,11 +117,27 @@ recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL
     test.level1.preds = vector("list", length = folds)
     for (i in seq_len(folds)) {
       idxs = test.idxs[[i]]
-      tmp.preds = lapply(seq_len(length(base.models[[i]])), function(b) predict(base.models[[i]][[b]], subsetTask(task, idxs)))
-      thenames = unlist(lapply(seq_len(length(base.models[[i]])), function(b) base.models[[i]][[b]]$learner$id))
-      names(tmp.preds) = thenames
-      test.level1.preds[[i]] = tmp.preds
+      if (save.on.disc) {
+        # This only works if outer resampling is Holdout (save model does do not 
+        # get infos about the fold figure, therefore only one fold is allowed): 
+        if (folds > 1) {
+          stopf("Using 'save.on.disc = TRUE' and outer resampling strategies others than Holdout is not supported.")
+        }
+        tmp.preds = vector("list", length = bls.length)
+        for (b in seq_len(bls.length)) { # do it seqentially
+          bm = readRDS(base.models[[i]][[b]]) # i is always 1
+          tmp.preds[[b]] = predict(bm, subsetTask(task, idxs))
+          names(tmp.preds)[b] = bm$learner$id
+          #rm(bm)
+        }
+      } else { # save.on.disc = FALSE
+        tmp.preds = lapply(seq_len(length(base.models[[i]])), function(b) predict(base.models[[i]][[b]], subsetTask(task, idxs)))
+        tmp.preds.names = unlist(lapply(seq_len(length(base.models[[i]])), function(b) base.models[[i]][[b]]$learner$id))
+        names(tmp.preds) = tmp.preds.names
       }
+      test.level1.preds[[i]] = tmp.preds
+      
+    }
     final.preds = vector("list", length = folds)
     ### train with new parameters
     for (i in seq_len(folds)) {

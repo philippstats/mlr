@@ -3,6 +3,7 @@ averageBaseLearners = function(learner, task) {
   bls = learner$base.learners
   id = learner$id
   save.on.disc = learner$save.on.disc
+  save.preds = learner$save.preds 
   # parallelMap
   parallelLibrary("mlr", master = FALSE, level = "mlr.stacking", show.info = FALSE)
   exportMlrOptions(level = "mlr.stacking")
@@ -29,6 +30,8 @@ averageBaseLearners = function(learner, task) {
     base.models = base.models[-broke.idx]
     pred.data = pred.data[-broke.idx]
   }
+  
+  if (save.preds == FALSE) pred.data = NULL
   
   #list(method = "average", base.models = base.models, super.model = NULL,
   list(method = "average", base.models = base.models, super.model = NULL,

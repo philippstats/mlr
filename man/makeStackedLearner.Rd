@@ -6,7 +6,8 @@
 \usage{
 makeStackedLearner(id = "stack", base.learners, super.learner = NULL,
   predict.type = NULL, method = "stack.nocv", use.feat = FALSE,
-  resampling = NULL, parset = list(), save.on.disc = FALSE)
+  resampling = NULL, parset = list(), save.on.disc = FALSE,
+  save.preds = TRUE)
 }
 \arguments{
 \item{id}{[\code{character(1)}]  Id string for object. Used to display object and for model saving. Default is "stack".}
@@ -36,17 +37,13 @@ If the type of the base learner prediction, which is set up within \code{base.le
 
 \item{method}{[\code{character(1)}]\cr
 \dQuote{average} for averaging the predictions of the base learners,
-\dQuote{stack.nocv} for building a super learner using the predictions of the base learners,
 \dQuote{stack.cv} for building a super learner using crossvalidated predictions of the base learners.
-\dQuote{hill.climb} (new implementation) for averaging the predictions of the base learners, with the weights learned from
-hill climbing algorithm and 
-\dQuote{compress} for compressing the model to mimic the predictions of a collection of base learners
-while speeding up the predictions and reducing the size of the model.
-Default is \dQuote{stack.nocv},}
+\dQuote{hill.climb} for averaging the predictions of the base learners, with the weights learned from
+ensemble selection algorithm and}
 
 \item{use.feat}{[\code{logical(1)}]\cr
 Whether the original features should also be passed to the super learner.
-Not used for \code{method = 'average'}.
+Only used for \code{method = 'stack.cv'}.
 Default is \code{FALSE}.}
 
 \item{resampling}{[\code{\link{ResampleDesc}}]\cr
@@ -60,15 +57,23 @@ The default \code{NULL} uses 5-fold CV.}
   \item{\code{init}}{Number of best models being included before the selection algorithm.}
   \item{\code{bagprob}}{The proportion of models being considered in one round of selection.}
   \item{\code{bagtime}}{The number of rounds of the bagging selection.}
-  \item{\code{metric}}{The result evaluation metric function taking two parameters \code{pred} and \code{true},
-  the smaller the score the better.}
-}
-the parameters for \code{compress} method, including
-\describe{
-   \item{k}{the size multiplier of the generated data}
-   \item{prob}{the probability to exchange values}
-   \item{s}{the standard deviation of each numerical feature}
+  \item{\code{metric}}{The result evaluation metric. Must be an object of type \code{Measure} from mlr.}
+  \item{\code{tolerance}}{The tolerance when inner loop should stop.}
 }}
+
+\item{save.on.disc}{[\code{logical(1)}]\cr 
+If set to \code{TRUE}, base models are saved on disc at the working directory. 
+This setting saves memory when huge models are fitted. Later during prediction 
+this models are loaded. Models are saved with the name "saved.models<stack.id>.<base.learner.id>.RData".
+Note that is only works for train-predict procdureas as well as for resampling using holdout. 
+Applying outer cross validation will result in wrong predictions due to the 
+fact that model names does not seperate between different resample iterations.
+Default is \code{FALSE}}
+
+\item{save.preds}{[\code{logical(1)}]\cr 
+If set to \code{FALSE} models will not contain predictions. This reduce the 
+object size. Note that function \code{recombine} does not work if saving 
+prediction is disabled. Default is \code{TRUE}.}
 }
 \description{
 A stacked learner uses predictions of several base learners and fits

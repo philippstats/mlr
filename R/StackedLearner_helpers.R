@@ -71,21 +71,18 @@ rowiseRatio = function(pred.data, levels, model.weight = NULL) {
 #' Training and prediction in one function (used for parallelMap)
 #'
 doTrainPredict = function(bls, task, show.info, id, save.on.disc) {
-  #print(options()$error)
   setSlaveOptions()
-  #print("***************************")
-  if (show.info) 
-    messagef("[Base Learner] %s is used. ", bls$id, .newline = ifelse(save.on.disc, FALSE, TRUE))
   model = train(bls, task)
   pred = predict(model, task = task)
-  
   if (save.on.disc) {
     model.id = paste("saved.model", id, bls$id, "RData", sep = ".")
     saveRDS(model, file = model.id)
     if (show.info)
-      messagef("Model saved as %s", model.id)
+      messagef("[Base Learner] %s applied. Model saved as %s", bls$id, model.id)
     X = list(base.models = model.id, pred = pred)
-  } else {
+  } else { # save.on.disc = FALSE:
+    if (show.info) 
+      messagef("[Base Learner] %s is applied. ", bls$id)
     X = list(base.models = model, pred = pred)
   }
   #print(paste(object.size(r)[1]/1000000, "MB"))
@@ -96,18 +93,17 @@ doTrainPredict = function(bls, task, show.info, id, save.on.disc) {
 #' 
 doTrainResample = function(bls, task, rin, measures, show.info, id, save.on.disc) {
   setSlaveOptions()
-  if (show.info) 
-    messagef("[Base Learner] %s is used", bls$id)
   model = train(bls, task)
   r = resample(bls, task, rin, measures, show.info = FALSE)
-
   if (save.on.disc) {
     model.id = paste("saved.model", id, bls$id, "RData", sep = ".")
     saveRDS(model, file = model.id)
     if (show.info) 
-      messagef("Model saved as %s", model.id, .newline = FALSE)
+      messagef("[Base Learner] %s applied. Model saved as %s", bls$id, model.id)
     X = list(base.models = model.id, resres = r)
-  } else {
+  } else { # save.on.disc = FALSE:
+    if (show.info) 
+      messagef("[Base Learner] %s applied.", bls$id)
     X = list(base.models = model, resres = r)
   }
   #print(paste(object.size(r)[1]/1000000, "MB"))
@@ -142,9 +138,7 @@ convertModelNameToBlsName = function(base.model.ids) {
   id = substr(base.model.ids, 1, nchar(base.model.ids)-6) # remove .RData
   id = unlist(strsplit(id, "[.]")) # split by dot
   if (id[1]!= "saved") stopf("Model Id '%s' must begin with 'saved.model'", base.model.ids)
-  id = id[-c(1:3)] #remove saved . models
-  #id = paste(id[length(id)-1], id[length(id)], sep = ".")
-  #id = cat(id, sep = ".")
+  id = id[-c(1:2)] #remove saved . models
   id = paste0(id, sep = ".", collapse = "")
   id = substr(id, 1, nchar(id)-1) # remove last dot
   id
