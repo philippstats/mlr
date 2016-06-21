@@ -134,13 +134,9 @@ orderScore = function(scores, minimize, init) {
   }
 }
 
-convertModelNameToBlsName = function(base.model.ids) {
-  id = substr(base.model.ids, 1, nchar(base.model.ids)-6) # remove .RData
-  id = unlist(strsplit(id, "[.]")) # split by dot
-  if (id[1]!= "saved") stopf("Model Id '%s' must begin with 'saved.model'", base.model.ids)
-  id = id[-c(1:2)] #remove saved . models
-  id = paste0(id, sep = ".", collapse = "")
-  id = substr(id, 1, nchar(id)-1) # remove last dot
+convertModelNameToBlsName = function(base.model.id, stack.id) {
+  id = substr(base.model.id, 1, nchar(base.model.id)-6) # remove .RData
+  id = substr(id, 13 + nchar(stack.id) + 1, nchar(id))  
   id
 }
 

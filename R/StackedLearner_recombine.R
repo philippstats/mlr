@@ -1,9 +1,18 @@
-#' Recombine stacking with new super.learner for "super.learner" or new parset for "ens.sel"
+#' Recombine stacking with new super.learner or new parset for "ens.sel". This is in alpha.
 #' 
 #' Instead of compute a whole new resampling procedure just use \code{recombine}. 
 #' \code{recombine} reuse the already done work from \code{resample}, i.e. 
-#' reuse already fittedbase models and reuse level 1 data. Note: This function 
-#' does not support resample objects with single broken base models (no error handling).
+#' reuse already fitted base models and reuse level 1 data. Note: This function 
+#' does not support resample objects with single broken base models (no error 
+#' handling). Moreover models need to present (i.e. save.preds = TRUE in 
+#' akeStackedLearner). 
+#' This function does three things internally to obtain the new predictions.
+#' 1. Obtain Level 1 Data for training set. This is needed to train new superlearner 
+#' or new ensemble selection.
+#' 2. Train superlearner or ensemble selection using level 1 data.
+#' 3. Create Level 1 Data for the test set (may be several test sets in case of CV),
+#' i.e. predict with saved models and test data. Returned Predictions are Level 1 Data.
+#' 4. Apply model from (2) on Level 1 Data from (3).
 #' 
 #' @param id [\code{character(1)}]\cr Id.
 #' @param obj [\code{ResampleResult}]\cr Object using \code{StackedLearner} as Learner.
@@ -44,7 +53,6 @@ recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL
     id = paste("recombined", super.learner$id, collapse = ".")
   assertClass(id, "character")
   assertClass(obj, "ResampleResult")
-  #assertChoice(method, c("stack.cv", "hill.climb"))
   assertClass(task, "Task") # check if tasks from obj and tasks fits
   if (is.null(measures))
     measures = list(getDefaultMeasure(task))
@@ -57,105 +65,121 @@ recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL
     assertClass(parset, "list")
   
   # method
-  method = obj$models[[1]]$learner$method
-  if (method == "stack.cv" & !any(class(super.learner) != "Learner")) # FIXME
-    stopf("Method 'stack.cv' needs 'super.learner'")
-
-  ### pre
+  org.method = obj$models[[1]]$learner$method
+  if (!is.null(super.learner)) {
+    assertClass(super.learner, "Learner")
+    method = "stack.cv"
+  } else {
+    assertClass(parset, "list")
+    method = "hill.climb"
+  }
+  if (org.method == "stack.cv" & method == "hill.climb") {
+    stopf("Ensemble Selection cannot be applied on top of method 'stack.cv'.")
+  }
+  ### 
   type = getTaskType(task) 
   tn = getTaskTargetNames(task)
   bls.length = length(obj$models[[1]]$learner.model$base.models)
   bls.names = names(obj$models[[1]]$learner.model$base.models)
   folds = length(obj$models)
-  bms.pt = unique(unlist(lapply(seq_len(bls.length), function(x) obj$models[[1]]$learner$base.models[[x]]$predict.type)))
+  #bms.pt = unique(unlist(lapply(seq_len(bls.length), function(x) obj$models[[1]]$learner.model$base.models[[x]]$learner$predict.type)))
+  bms.pt = unique(unlist(lapply(seq_len(bls.length), function(x) obj$models[[1]]$learner$base.learners[[x]]$predict.type)))
+  if (length(bms.pt) > 1) stopf("All Base Learner must be of the same predict.type.")
   task.size = getTaskSize(task)
   save.on.disc = obj$models[[1]]$learner$save.on.disc
   
   time1 = Sys.time()
   
-  # get base models (may be WrappedModels or names directing to RData)
+  # get base models (for save.on.disc=FALSE: WrappedModels; for TRUE: names directing to RData on disc.)
   base.models = lapply(seq_len(folds), function(x) obj$models[[x]]$learner.model$base.models)
-  # get test idxs
+  # get train and test idxs
   train.idxs = lapply(seq_len(folds), function(x) obj$models[[x]]$subset)
   test.idxs = lapply(seq_len(folds), function(x) setdiff(seq_len(task.size), train.idxs[[x]]))
-  
   #
-  if (method == "stack.cv") {
-    assertCharacter(method, pattern = "stack.cv")
-    ### get TEST level 1 data, i.e. apply bls from traning on testing data
-    # train base models to obtain level 1 data for test parts
-    test.level1.preds = vector("list", length = folds)
+  test.level1.preds = vector("list", length = folds)
+  #
+  if (method == "stack.cv") { ### stack.cv ###
+    ### get TEST level 1 preds, i.e. apply bls models from training on testing data
+    # saved as "test.level1.preds"
     for (i in seq_len(folds)) {
-      idxs = test.idxs[[i]]
-      preds = lapply(seq_len(length(base.models[[i]])), function(b) predict(base.models[[i]][[b]], subsetTask(task, idxs)))
+      test.idx = test.idxs[[i]]
+      preds = createTestPreds(i, base.models[[i]], test.idx = test.idx, task, save.on.disc)
+      #preds = lapply(seq_len(length(base.models[[i]])), function(b) predict(base.models[[i]][[b]], subsetTask(task, idxs)))
       test.level1 = lapply(seq_len(length(preds)), function(x) getResponse(preds[[x]], full.matrix = TRUE))
+      names(test.level1) = bls.names
       if (bms.pt == "prob") { #remove first column for predict.type="prob"
         test.level1 = lapply(test.level1, function(x) x[, -1])
       }
-      names(test.level1) = bls.names
-      test.level1[[tn]] = getTaskTargets(task)[idxs]
+      test.level1[[tn]] = getTaskTargets(task)[test.idx]
       test.level1.data = as.data.frame(test.level1)
       test.level1.task = createTask(type, data = test.level1.data, target = tn)
       test.level1.preds[[i]] = test.level1.task
+      rm(preds, test.level1.data, test.level1.task)
     }
-    ### apply super.learner learner on TRAIN level 1 data to obtain models
-    train.superlearner = retrainSuperLearner(obj, super.learner) # FIXME not whole obj
-    ### apply models from above on TEST level 1 data
-    final.preds = lapply(seq_len(folds), function(i) predict(train.superlearner[[i]], test.level1.preds[[i]]))
-  } else { # end stack.cv / start hill.climb
-    assertCharacter(method, pattern = "hill.climb")
-    org.parset = obj$models[[1]]$learner$parset
-    use.org = setdiff(names(org.parset), names(parset))
-    org.parset = org.parset[use.org]
-    parset = c(org.parset, parset)
-    
-    preds = lapply(seq_len(folds), function(x) obj$models[[x]]$learner.model$pred.train)
-    perfs = lapply(seq_len(folds), function(x) obj$models[[x]]$learner.model$bls.performance)
+    ### apply super.learner on TRAIN level 1 tasks to obtain models
+    # data saved as "train.level1.datas" (one list entry per fold)
+    # task saved as "train.level1.tasks" (-"-)
 
-    ## predict on new test data
-    # train base models to obtain level 1 data for test parts
-    test.level1.preds = vector("list", length = folds)
-    for (i in seq_len(folds)) {
-      idxs = test.idxs[[i]]
-      if (save.on.disc) {
-        # This only works if outer resampling is Holdout (save model does do not 
-        # get infos about the fold figure, therefore only one fold is allowed): 
-        if (folds > 1) {
-          stopf("Using 'save.on.disc = TRUE' and outer resampling strategies others than Holdout is not supported.")
+    # If pred.train are a data.frames (i.e. method=stack.cv) then train.level1.datas
+    # are already a list of data.frame. 
+    # If pred.train are predictions (i.e. method=hill.climb) then they must be 
+    # converted using getResponse.
+    train.level1.datas = lapply(obj$models, function(x) x$learner.model$pred.train)
+    if (org.method == "hill.climb") { # pred.train are predictions, no data.frame
+      data.list = vector("list", length = folds)
+      for (f in seq_len(folds)) {
+        test.idx = test.idxs[[f]]
+        tmp = lapply(seq_len(bls.length), function(x) getResponse(train.level1.datas[[f]][[x]], full.matrix = TRUE))
+        names(tmp) = bls.names
+        if (bms.pt == "prob") { # remove first column for predict.type="prob" (i.e. kind of classif)
+          tmp = lapply(tmp, function(x) x[, -1])
         }
-        tmp.preds = vector("list", length = bls.length)
-        for (b in seq_len(bls.length)) { # do it seqentially
-          bm = readRDS(base.models[[i]][[b]]) # i is always 1
-          tmp.preds[[b]] = predict(bm, subsetTask(task, idxs))
-          names(tmp.preds)[b] = bm$learner$id
-          #rm(bm)
-        }
-      } else { # save.on.disc = FALSE
-        tmp.preds = lapply(seq_len(length(base.models[[i]])), function(b) predict(base.models[[i]][[b]], subsetTask(task, idxs)))
-        tmp.preds.names = unlist(lapply(seq_len(length(base.models[[i]])), function(b) base.models[[i]][[b]]$learner$id))
-        names(tmp.preds) = tmp.preds.names
+        tmp[[tn]] = getTaskTargets(task)[test.idx]
+        data.list[[f]] = as.data.frame(tmp)
       }
-      test.level1.preds[[i]] = tmp.preds
-      
+      train.level1.datas = data.list
     }
-    final.preds = vector("list", length = folds)
-    ### train with new parameters
+    train.level1.tasks = lapply(train.level1.datas, function(d) createTask(type, d, target = tn))
+    for (f in seq_len(folds)) {
+      train.level1.tasks[[f]]$task.desc$id = paste0("fold", f)
+    }
+    rm(train.level1.datas)
+    # fit super.learner on every fold
+    #-train.supermodel = benchmark(super.learner, tasks = train.level1.tasks, resampling = makeResampleDesc("Holdout", predict = "train", split = 1), measures = measures)
+    #+ here tuneParam could be applied
+    train.supermodel = lapply(seq_len(folds), function(x) train(super.learner, task = train.level1.tasks[[x]]))
+    ### apply train.supermodel from line above on TEST level 1 preds 
+    train.preds = lapply(seq_len(folds), function(i) predict(train.supermodel[[i]], test.level1.preds[[i]]))
+    res.model = train.supermodel
+  } else { 
+    ### end stack.cv / start hill.climb ###
+    # use settings from new parset
+    parset = createNewParset(org.parset = obj$models[[1]]$learner$parset, new.parset = parset)
+    ### get TRAIN level 1 preds and perfs
+    # saved as "train.level1.preds"
+    # saved as "train.level1.perfs"
+    train.level1.preds = lapply(seq_len(folds), function(x) obj$models[[x]]$learner.model$pred.train)
+    train.level1.perfs = lapply(seq_len(folds), function(x) obj$models[[x]]$learner.model$bls.performance)
+    # 
+    train.preds = vector("list", length = folds)
+    res.model = vector("list", length = folds)
     for (i in seq_len(folds)) {
-      ensel = applyEnsembleSelection(bls.length = bls.length, 
-        bls.names = bls.names, pred.list = preds[[i]], 
-        bls.performance = perfs[[i]], parset = parset)
-      
-      freq = ensel$freq
+      ### get TEST level 1 preds, i.e. apply bls models from training on testing data
+      # saved as "test.level1.preds"
+      test.level1.preds[[i]] = createTestPreds(i, base.models[[i]], test.idx = test.idxs[[i]], task, save.on.disc)
+      ### train with new parameters
+      res.model[[i]] = applyEnsembleSelection(bls.length = bls.length, 
+        bls.names = bls.names, pred.list = train.level1.preds[[i]], 
+        bls.performance = train.level1.perfs[[i]], parset = parset)
+      freq = res.model[[i]]$freq
       current.pred.list = test.level1.preds[[i]]
       #names(current.pred.list) = bls.names
       current.pred.list = expandPredList(current.pred.list, freq = freq)
-      final.preds[[i]] = aggregatePredictions(pred.list = current.pred.list)
+      train.preds[[i]] = aggregatePredictions(pred.list = current.pred.list)
     }
   }
-      
-
   ### measures and runtime
-  m = lapply(final.preds, function(x) performance(x, measures = measures))
+  m = lapply(train.preds, function(x) performance(x, measures = measures))
   measure.test = as.data.frame(do.call(rbind, m))
   measure.test = cbind(iter = 1:NROW(measure.test), measure.test)
   aggr = colMeans(measure.test[, -1, drop = FALSE])
@@ -165,44 +189,55 @@ recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL
   runtime = as.numeric(difftime(time2, time1, "sec"))
   
   ### return
-  X = list(learner.id = id, task.id = tsk$task.desc$id, measure.test = measure.test, aggr = aggr, pred = final.preds, 
-       runtime = runtime, super.learner = super.learner, parset = parset)
+  X = list(learner.id = id, task.id = tsk$task.desc$id, measure.test = measure.test, aggr = aggr, train.preds = train.preds, 
+       runtime = runtime, super.learner = super.learner, parset = parset, res.model = res.model)
   class(X) = "RecombinedResampleResult"
   X
 }
+
 
 #' Retrain super learner on new test task
 #' 
 #' @param obj [\code{ResampleResult}]\cr Object using \code{StackedLearner} as Learner.
 #' @param super.learner [\code{Learner}]\cr New \code{super.learner} to apply.
 
-retrainSuperLearner = function(obj, super.learner) {
-  assertClass(obj, "ResampleResult")
+'
+retrainSuperLearner = function(models, super.learner, type, target, pred.train.is.pred = is.pred) {
+  assertClass(models, "list")
   assertClass(super.learner, "Learner")
   # train new super.learner (we need level1 data and then train the super.learner model)
-  train.level1 = extractLevel1Task(obj)
+  #train.level1 = extractLevel1Task(obj)
+  train.level1 = extractLevel1Task(models, type, target, pred.train.is.pred, as.task = TRUE)
   train.superlearner = vector("list", length = length(train.level1))
   for (i in seq_along(train.level1)) {
     train.superlearner[[i]] = train(super.learner, train.level1[[i]])
   }
   train.superlearner
 }
-
+'
 
 #' Extract level 1 data from stacking resample and create a task
 #' 
 #' @param obj [\code{ResampleResult}]\cr Object using \code{StackedLearner} as Learner.
 #' @param as.task [\code{logical(1)}]\cr Specify if task or data.frame should be returned. 
 
-extractLevel1Task = function(obj, as.task = TRUE) {
-  assertClass(obj, "ResampleResult")
+'
+extractLevel1Task = function(models, type, target, pred.train.is.pred, as.task = TRUE) {
+  #assertClass(obj, "ResampleResult")
   assertLogical(as.task)
-  type = obj$models[[1]]$task.desc$type
-  target = obj$models[[1]]$task.desc$target
-  
-  if (is.null(obj$models)) 
-    stopf("Resample needs models. Use argument 'model = TRUE' in your resample function.")
-  datas = lapply(obj$models, function(x) x$learner.model$pred.train)
+  #type = obj$models[[1]]$task.desc$type
+  #target = obj$models[[1]]$task.desc$target
+
+  #if (is.null(obj$models)) 
+  #  stopf("Resample needs models. Use argument model = TRUE in your resample function.")
+  datas = lapply(models, function(x) x$learner.model$pred.train)
+  if (pred.train.is.pred) {
+    for (f in folds)
+    datas = lapply(seq_len(length(datas)), function(x) getResponse(datas[[x]], full.matrix = TRUE))
+    if (type == "prob") { #remove first column for predict.type="prob"
+      datas = lapply(datas, function(x) x[, -1])
+    }
+  }
   tasks = lapply(datas, function(d) createTask(type, d, target))
   if (as.task) {
     return(tasks)
@@ -210,7 +245,7 @@ extractLevel1Task = function(obj, as.task = TRUE) {
     return(datas)
   }
 }
-
+'
 #' Create a Classif or Regr Task
 #' 
 #' @param type [\code{character(1)}]\cr Use "classif" for Classification and "regr" for regression. 

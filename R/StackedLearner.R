@@ -180,6 +180,7 @@ makeStackedLearner = function(id = "stack", base.learners, super.learner = NULL,
 #' @export
 getStackedBaseLearnerPredictions = function(model, newdata = NULL, type = "pred.data") {
   assertChoice(type, choices = c("pred.data", "pred"))
+  stack.id = model$learner$id
   # checking
   if (is.null(newdata)) {
     pred.data = model$learner.model$pred.train
@@ -199,11 +200,12 @@ getStackedBaseLearnerPredictions = function(model, newdata = NULL, type = "pred.
     pred = pred.data = vector("list", length(bms))
     if (model$learner$save.on.disc) {
       for (i in seq_along(bms)) {
-        model = readRDS(bms[[i]])
-        pred[[i]] = predict(model, newdata = newdata)
+        m = readRDS(bms[[i]])
+        pred[[i]] = predict(m, newdata = newdata)
         pred.data[[i]] = getResponse(pred[[i]], full.matrix = ifelse(method %in% c("average", "hill.climb"), TRUE, FALSE))
       }
-      bls.ids = sapply(bms, function(x) convertModelNameToBlsName(x))
+#browser()
+      bls.ids = sapply(bms, function(x) convertModelNameToBlsName(x, stack.id))
     } else {
       for (i in seq_along(bms)) {
         pred[[i]] = predict(bms[[i]], newdata = newdata)
