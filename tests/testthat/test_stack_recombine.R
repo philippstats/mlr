@@ -72,7 +72,7 @@ test_that("Recombine", {
     
     resSL = list(ss1, ss2, ss3, ss4, ss5)
     # check if all models contain results (non-NAs)
-    expect_equal(anyNA(lapply(1:10, function(x) resSL[[x]]$aggr)), FALSE)
+    expect_equal(anyNA(lapply(1:5, function(x) resSL[[x]]$aggr)), FALSE)
     # FIXME: more tests
   }
 

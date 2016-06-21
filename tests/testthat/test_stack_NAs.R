@@ -11,19 +11,20 @@ test_that("Error handling if learner crashs (classif)", {
   sp.task = makeClassifTask(data = pid, target = "diabetes")
   tasks = list(mc.task, sp.task)
   pts = c("prob", "response")
-  
+
   bls = list(
    makeLearner("classif.rpart"),
    makeLearner("classif.lda"),
    makeLearner("classif.randomForest"))
  
   # average
+  context("average")
   #load_all("mlr"); tsk = mc.task; spt = "prob"; bpt =  "response"
   for (tsk in tasks) {
     for (spt in pts) {
       for (bpt in pts) {
         messagef("> %s, %s, %s", getTaskId(tsk), spt, bpt)
-        configureMlr(on.learner.error = "warn", on.learner.warning = "quiet")
+        configureMlr(on.learner.error = "quiet", on.learner.warning = "quiet")
         bls = lapply(bls, setPredictType, bpt)
         sta = makeStackedLearner(id = "stack", bls, predict.type = spt, method = "average")
         #debugonce(trainLearner.StackedLearner)
@@ -40,10 +41,11 @@ test_that("Error handling if learner crashs (classif)", {
   }
   
   #stack.cv
+  context("stack.cv")
   for (spt in pts) {
     for (bpt in pts) {
       messagef("> %s, %s", spt, bpt)
-      configureMlr(on.learner.error = "warn", on.learner.warning = "quiet")
+      configureMlr(on.learner.error = "quiet", on.learner.warning = "quiet")
       bls = lapply(bls, setPredictType, bpt)
       slr = makeLearner("classif.kknn")
       stc = makeStackedLearner(id = "stack", bls, slr, predict.type = spt, method = "stack.cv")
@@ -62,11 +64,12 @@ test_that("Error handling if learner crashs (classif)", {
   }
  
   #hill.climb
+  context("hill.climb")
   bagtimes = c(1, 2, 5)
   for (tsk in tasks) {
     for (spt in pts) {
       for (bt in bagtimes) {
-        configureMlr(on.learner.error = "warn", on.learner.warning = "quiet")
+        configureMlr(on.learner.error = "quiet", on.learner.warning = "quiet")
         messagef("> %s, %s, %s", getTaskId(tsk), spt, bt)
         bls = lapply(bls, setPredictType, "prob")
         stc = makeStackedLearner(id = "stack", bls, predict.type = spt, method = "hill.climb",

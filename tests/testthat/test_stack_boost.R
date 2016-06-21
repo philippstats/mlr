@@ -24,18 +24,22 @@ test_that("Parameters for makeBoostedStackingLearner (classif)", {
     for (spt in pts) {
       for (bpt in pts) {
         context(paste(tsk$task.desc$id, spt, bpt))
+        configureMlr(on.learner.warning = "quiet")
+        if (length(tsk$task.desc$class.levels) > 2) {
+          dist = "multinomial"
+        } else {
+          dist = "bernoulli" 
+        }
         lrns = list(
-          makeLearner("classif.gbm"),
-          makeLearner("classif.randomForest"))
+          makeLearner("classif.gbm", distribution = dist),
+          makeLearner("classif.rpart"))
         lrns = lapply(lrns, setPredictType, bpt)
         mm = makeModelMultiplexer(lrns)
         ps = makeModelMultiplexerParamSet(mm,
           #makeNumericParam("sigma", lower = -5, upper = 5, trafo = function(x) 2^x),
           #makeNumericParam("C", lower = -5, upper = 5, trafo = function(x) 2^x),
-          makeIntegerParam("n.trees", lower = 1L, upper = 500L),
-          makeIntegerParam("interaction.depth", lower = 1L, upper = 10L),
-          makeIntegerParam("ntree", lower = 1L, upper = 500L),
-          makeIntegerParam("mtry", lower = 1L, upper = getTaskNFeats(tsk)))
+          makeIntegerParam("n.trees", lower = 1L, upper = 3L),
+          makeIntegerParam("minsplit", lower = 1L, upper = 3L))
         stb = makeBoostedStackingLearner(model.multiplexer = mm, 
           predict.type = spt, 
           resampling = cv5,
@@ -50,6 +54,7 @@ test_that("Parameters for makeBoostedStackingLearner (classif)", {
         #res = predict(model, subsetTask(tsk, subset = test.set))
         #res
         #performance(res)
+        # debugo
         
         r = resample(stb, task = tsk, resampling = cv2, models = TRUE, show.info = TRUE)
         expect_is(r$aggr, "numeric")
@@ -101,25 +106,25 @@ test_that("Parameters for makeBoostedStackingLearner (classif)", {
 #  }  
 #})
 
+context("Check makeXBest...")
 test_that("Check makeXBestLearnersFromMMTuneResult", {
   
   mm.lrns = list(
     makeLearner("classif.xgboost", predict.type = "prob", fix.factors.prediction = TRUE,
       max_depth = 3, nrounds = 10),
-    makeLearner("classif.svm", predict.type = "prob", fix.factors.prediction = TRUE))
+    makeLearner("classif.randomForest", predict.type = "prob", fix.factors.prediction = TRUE))
   mm = makeModelMultiplexer(mm.lrns)
   
   mm.ps = makeModelMultiplexerParamSet(mm,
     classif.xgboost = makeParamSet(
       makeNumericParam("eta", lower = -7L, upper = -5L, trafo = function(x) 2^x)
     ),
-    classif.svm = makeParamSet(
-      makeDiscreteParam("kernel", values = c("linear", "polynomial", "radial")),
-      makeNumericParam("cost", lower = 2^-12, upper = 2^12),
-      makeIntegerParam("degree", lower = 2L, upper = 2L, requires = quote(kernel == "polynomial")),
-      makeNumericParam("gamma", lower = 0, upper = 2^12, requires = quote(kernel == "radial"))
+    classif.randomForest = makeParamSet(
+     makeIntegerParam("ntree", lower = 1L, upper = 50L), 
+     makeIntegerParam("mtry", lower = 1L, upper = 3)
     )
   )
+  
   ctrl = makeTuneControlRandom(maxit = 4L)
   set.seed(1)
   res = tuneParams(mm, tsk, cv2, par.set = mm.ps, 
