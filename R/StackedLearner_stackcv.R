@@ -61,6 +61,7 @@ stackCV = function(learner, task) {
   }
   #message(getTaskDescription(task))
   #message(na_count(getTaskData(super.task)))
+  print(head(super.task))
   messagef("[Super Learner] Train %s with %s features on %s observations", learner$super.learner$id, getTaskNFeats(super.task), getTaskSize(super.task))
   super.model = train(learner$super.learner, super.task)
   

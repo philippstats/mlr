@@ -2,15 +2,15 @@
 % Please edit documentation in R/StackedLearner_recombine.R
 \name{recombine}
 \alias{recombine}
-\title{Recombine stacking with new super.learner for "super.learner" or new parset for "ens.sel"}
+\title{Recombine stacking with new super.learner or new parset for "ens.sel". This is in alpha.}
 \usage{
 recombine(id = NULL, obj, task, measures = NULL, super.learner = NULL,
-  parset = NULL)
+  use.feat = NULL, parset = NULL)
 }
 \arguments{
-\item{id}{[\code{character(1)}]\n Id.}
+\item{id}{[\code{character(1)}]\cr Id.}
 
-\item{obj}{[\code{ResampleResult}]\n Object using \code{StackedLearner} as Learner.}
+\item{obj}{[\code{ResampleResult}]\cr Object using \code{StackedLearner} as Learner.}
 
 \item{task}{[\code{\link{Task}}]\cr
 The task.}
@@ -19,15 +19,26 @@ The task.}
 Performance measure(s) to evaluate.
 Default is the default measure for the task, see here \code{\link{getDefaultMeasure}}.}
 
-\item{super.learner}{[\code{Learner}]\n New \code{super.learner} to apply.}
+\item{super.learner}{[\code{Learner}]\cr New \code{super.learner} to apply.}
 
-\item{parset}{[\code{list}]\n List containing parameter for \code{hill.climb}. See \code{\link{makeStackedLearner}}.}
+\item{use.feat}{[\code{logical(1)}]\cr Whether the original features should also be passed to the super learner.}
+
+\item{parset}{[\code{list}]\cr List containing parameter for \code{hill.climb}. See \code{\link{makeStackedLearner}}.}
 }
 \description{
 Instead of compute a whole new resampling procedure just use \code{recombine}. 
 \code{recombine} reuse the already done work from \code{resample}, i.e. 
-reuse already fittedbase models and reuse level 1 data. Note: This function 
-does not support resample objects with single broken base models (no error handling).
+reuse already fitted base models and reuse level 1 data. Note: This function 
+does not support resample objects with single broken base models (no error 
+handling). Moreover models need to present (i.e. save.preds = TRUE in 
+akeStackedLearner). 
+This function does three things internally to obtain the new predictions.
+1. Obtain Level 1 Data for training set. This is needed to train new superlearner 
+or new ensemble selection.
+2. Train superlearner or ensemble selection using level 1 data.
+3. Create Level 1 Data for the test set (may be several test sets in case of CV),
+i.e. predict with saved models and test data. Returned Predictions are Level 1 Data.
+4. Apply model from (2) on Level 1 Data from (3).
 }
 \examples{
 tsk = pid.task

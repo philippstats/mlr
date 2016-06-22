@@ -1,10 +1,29 @@
-# ensemble selection algo:
+#' ensemble selection algo:
+#' 
+#' @param pred.list pred.list
+#' @param bls.length bls.length
+#' @param bls.names bls.names
+#' @param bls.performance bls.performance
+#' @param parset parset
+#' @param parset list of parset
+#' @export
+
 
 applyEnsembleSelection = function(pred.list = pred.list, bls.length = bls.length,
-  bls.names = bls.names, bls.performance = bls.performance, parset = parset) {
+  bls.names = bls.names, bls.performance = bls.performance, parset = list(replace = TRUE, init = 1, bagprob = 1, bagtime = 1,
+  metric = NULL, maxiter = NULL, tolerance = 1e-8)) {
   
   # parset
   assertClass(parset, "list")
+  # FIXME: Need defaults. should be nicer
+  if (is.null(parset$replace)) parset$replace = TRUE
+  if (is.null(parset$init)) parset$init = 1
+  if (is.null(parset$bagprob)) parset$bagprob = 0.5
+  if (is.null(parset$bagtime)) parset$bagtime = 20
+  if (is.null(parset$metric)) parset$metric = getDefaultMeasure(pred.list[[1]]$task.desc)
+  if (is.null(parset$maxiter)) parset$maxiter = bls.length
+  if (is.null(parset$tolerance)) parset$tolerance = 1e-8
+      
   replace = parset$replace
   init = parset$init
   bagprob = parset$bagprob
@@ -12,6 +31,8 @@ applyEnsembleSelection = function(pred.list = pred.list, bls.length = bls.length
   maxiter = parset$maxiter
   metric = parset$metric
   tolerance = parset$tolerance
+  
+  
   #
   m = bls.length
   freq = rep(0, m)

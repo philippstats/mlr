@@ -204,7 +204,6 @@ getStackedBaseLearnerPredictions = function(model, newdata = NULL, type = "pred.
         pred[[i]] = predict(m, newdata = newdata)
         pred.data[[i]] = getResponse(pred[[i]], full.matrix = ifelse(method %in% c("average", "hill.climb"), TRUE, FALSE))
       }
-#browser()
       bls.ids = sapply(bms, function(x) convertModelNameToBlsName(x, stack.id))
     } else {
       for (i in seq_along(bms)) {
@@ -222,7 +221,7 @@ getStackedBaseLearnerPredictions = function(model, newdata = NULL, type = "pred.
     # FIXME I don
     broke.idx.pd = which(unlist(lapply(pred.data, function(x) checkIfNullOrAnyNA(x))))
     if (length(broke.idx.pd) > 0) {
-      messagef("Base Learner '%s' is broken in 'getStackedBaseLearnerPredictions' and will be removed\n", names(bls)[broke.idx])
+      messagef("Preds '%s' is broken in 'getStackedBaseLearnerPredictions' and will be removed\n", names(bls)[broke.idx])
       pred.data = pred.data[-broke.idx.pd, drop = FALSE]
       pred = pred[-broke.idx.pd, drop = FALSE]
     }

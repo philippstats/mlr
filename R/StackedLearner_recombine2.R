@@ -1,3 +1,11 @@
+#' Create Predictions for Testing Set
+#' 
+#' @param i number of fold
+#' @param bls base.learner to use
+#' @param test.idx idx for subsetting
+#' @param task task
+#' @param save.on.disc wether model are presend in bls or must be loaded using readRDS
+
 createTestPreds = function(i, bls, test.idx, task, save.on.disc) {
     bls.len = length(bls)
     if (save.on.disc) {
@@ -24,14 +32,16 @@ createTestPreds = function(i, bls, test.idx, task, save.on.disc) {
 
 
 
-#'
-#'
+#' Create new parset
+#' 
+#' @param org.parset orginal/old parset from obj
+#' @param new.parset parameters which should be updated
  
 createNewParset = function(org.parset, new.parset) {
   used.org = setdiff(names(org.parset), names(new.parset))
   org.parset = org.parset[used.org]
   final.parset = c(org.parset, new.parset)
-  allowed =  c("replace", "init", "bagprob", "bagtime", "metric", "tolerance")
+  allowed =  c("replace", "init", "bagprob", "bagtime", "metric", "tolerance", "maxiter")
   unallowed = setdiff(names(new.parset), allowed) 
   if (length(unallowed) > 0) 
     stopf("'%s' is no allowed argument for parset.", unallowed)

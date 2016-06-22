@@ -17,6 +17,7 @@
 #' @param id [\code{character(1)}]\cr Id.
 #' @param obj [\code{ResampleResult}]\cr Object using \code{StackedLearner} as Learner.
 #' @param super.learner [\code{Learner}]\cr New \code{super.learner} to apply.
+#' @param use.feat [\code{logical(1)}]\cr Whether the original features should also be passed to the super learner.
 #' @param parset [\code{list}]\cr List containing parameter for \code{hill.climb}. See \code{\link{makeStackedLearner}}.
 #' @template arg_task
 #' @template arg_measures
@@ -47,7 +48,7 @@
 
 
 
-recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL, parset = NULL) {
+recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL, use.feat = NULL, parset = NULL) {
   ### checks 
   if (is.null(id))
     id = paste("recombined", super.learner$id, collapse = ".")
@@ -59,11 +60,18 @@ recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL
   if (class(measures) == "Measure")
     measures = list(measures)
   lapply(measures, function(x) assertClass(x, "Measure"))
-  if (!is.null(super.learner)) 
+  if (!is.null(super.learner)) {
     assertClass(super.learner, "Learner")
-  if (!is.null(parset)) 
+    if (is.null(use.feat)) {
+      use.feat = FALSE
+    }
+    assertLogical(use.feat)  
+    assertClass(parset, "NULL")
+  }
+  if (!is.null(parset)) {
     assertClass(parset, "list")
-  
+  }
+
   # method
   org.method = obj$models[[1]]$learner$method
   if (!is.null(super.learner)) {
@@ -110,6 +118,10 @@ recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL
       if (bms.pt == "prob") { #remove first column for predict.type="prob"
         test.level1 = lapply(test.level1, function(x) x[, -1])
       }
+      if (use.feat) {
+        feat = getTaskData(task, subset = test.idx, target.extra = TRUE)$data
+        test.level1[["feat"]] = feat
+      }
       test.level1[[tn]] = getTaskTargets(task)[test.idx]
       test.level1.data = as.data.frame(test.level1)
       test.level1.task = createTask(type, data = test.level1.data, target = tn)
@@ -128,13 +140,17 @@ recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL
     if (org.method == "hill.climb") { # pred.train are predictions, no data.frame
       data.list = vector("list", length = folds)
       for (f in seq_len(folds)) {
-        test.idx = test.idxs[[f]]
+        train.idx = train.idxs[[f]]
         tmp = lapply(seq_len(bls.length), function(x) getResponse(train.level1.datas[[f]][[x]], full.matrix = TRUE))
         names(tmp) = bls.names
         if (bms.pt == "prob") { # remove first column for predict.type="prob" (i.e. kind of classif)
           tmp = lapply(tmp, function(x) x[, -1])
         }
-        tmp[[tn]] = getTaskTargets(task)[test.idx]
+        if (use.feat) {
+        feat = getTaskData(task, subset = train.idx, target.extra = TRUE)$data
+        tmp[["feat"]] = feat
+        }
+        tmp[[tn]] = getTaskTargets(task)[train.idx]
         data.list[[f]] = as.data.frame(tmp)
       }
       train.level1.datas = data.list
@@ -192,7 +208,7 @@ recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL
   X = list(learner.id = id, task.id = tsk$task.desc$id, measure.test = measure.test, aggr = aggr, train.preds = train.preds, 
        runtime = runtime, super.learner = super.learner, parset = parset, res.model = res.model)
   class(X) = "RecombinedResampleResult"
-  X
+  return(X)
 }
 
 
@@ -201,51 +217,51 @@ recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL
 #' @param obj [\code{ResampleResult}]\cr Object using \code{StackedLearner} as Learner.
 #' @param super.learner [\code{Learner}]\cr New \code{super.learner} to apply.
 
-'
-retrainSuperLearner = function(models, super.learner, type, target, pred.train.is.pred = is.pred) {
-  assertClass(models, "list")
-  assertClass(super.learner, "Learner")
-  # train new super.learner (we need level1 data and then train the super.learner model)
-  #train.level1 = extractLevel1Task(obj)
-  train.level1 = extractLevel1Task(models, type, target, pred.train.is.pred, as.task = TRUE)
-  train.superlearner = vector("list", length = length(train.level1))
-  for (i in seq_along(train.level1)) {
-    train.superlearner[[i]] = train(super.learner, train.level1[[i]])
-  }
-  train.superlearner
-}
-'
+#'
+#retrainSuperLearner = function(models, super.learner, type, target, pred.train.is.pred = is.pred) {
+#  assertClass(models, "list")
+#  assertClass(super.learner, "Learner")
+#  # train new super.learner (we need level1 data and then train the super.learner model)
+#  #train.level1 = extractLevel1Task(obj)
+#  train.level1 = extractLevel1Task(models, type, target, pred.train.is.pred, as.task = TRUE)
+#  train.superlearner = vector("list", length = length(train.level1))
+#  for (i in seq_along(train.level1)) {
+#    train.superlearner[[i]] = train(super.learner, train.level1[[i]])
+#  }
+#  train.superlearner
+#}
+#'
 
 #' Extract level 1 data from stacking resample and create a task
 #' 
 #' @param obj [\code{ResampleResult}]\cr Object using \code{StackedLearner} as Learner.
 #' @param as.task [\code{logical(1)}]\cr Specify if task or data.frame should be returned. 
 
-'
-extractLevel1Task = function(models, type, target, pred.train.is.pred, as.task = TRUE) {
-  #assertClass(obj, "ResampleResult")
-  assertLogical(as.task)
-  #type = obj$models[[1]]$task.desc$type
-  #target = obj$models[[1]]$task.desc$target
 
-  #if (is.null(obj$models)) 
-  #  stopf("Resample needs models. Use argument model = TRUE in your resample function.")
-  datas = lapply(models, function(x) x$learner.model$pred.train)
-  if (pred.train.is.pred) {
-    for (f in folds)
-    datas = lapply(seq_len(length(datas)), function(x) getResponse(datas[[x]], full.matrix = TRUE))
-    if (type == "prob") { #remove first column for predict.type="prob"
-      datas = lapply(datas, function(x) x[, -1])
-    }
-  }
-  tasks = lapply(datas, function(d) createTask(type, d, target))
-  if (as.task) {
-    return(tasks)
-  } else {
-    return(datas)
-  }
-}
-'
+#extractLevel1Task = function(models, type, target, pred.train.is.pred, as.task = TRUE) {
+#  #assertClass(obj, "ResampleResult")
+#  assertLogical(as.task)
+#  #type = obj$models[[1]]$task.desc$type
+#  #target = obj$models[[1]]$task.desc$target
+#
+#  #if (is.null(obj$models)) 
+#  #  stopf("Resample needs models. Use argument model = TRUE in your resample function.")
+#  datas = lapply(models, function(x) x$learner.model$pred.train)
+#  if (pred.train.is.pred) {
+#    for (f in folds)
+#    datas = lapply(seq_len(length(datas)), function(x) getResponse(datas[[x]], full.matrix = TRUE))
+#    if (type == "prob") { #remove first column for predict.type="prob"
+#      datas = lapply(datas, function(x) x[, -1])
+#    }
+#  }
+#  tasks = lapply(datas, function(d) createTask(type, d, target))
+#  if (as.task) {
+#    return(tasks)
+#  } else {
+#    return(datas)
+#  }
+#}
+
 #' Create a Classif or Regr Task
 #' 
 #' @param type [\code{character(1)}]\cr Use "classif" for Classification and "regr" for regression. 

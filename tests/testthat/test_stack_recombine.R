@@ -1,4 +1,5 @@
 context("stack_recombine")
+# library(dplyr); library(testthat); library(devtools); setwd("~/Dokumente/mt"); load_all("mlr")
 
 
 test_that("Recombine", {
@@ -29,9 +30,9 @@ test_that("Recombine", {
     rdesc = cv2
     resES = resample(ste, tsk, rdesc, models = TRUE) 
     ee1 = recombine(obj = resES, task = tsk, measures = mmce, parset = list(init = 2, bagprob = .7, bagtime = 10, replace = TRUE, metric = mmce))
-    ee2 = recombine(obj = resES, task = tsk, measures = acc, parset = list(init = 2, bagprob = .7, bagtime = 10, replace = FALSE, metric = acc))
+    ee2 = recombine(obj = resES, task = tsk, measures = acc, parset = list(init = 2, bagprob = .7, bagtime = 10, replace = FALSE, metric = acc, maxiter = 2))
     ee3 = recombine(obj = resES, task = tsk, measures = list(mmce), parset = list(init = 1, bagprob = .7, bagtime = 10, replace = TRUE, tolerance = 0.5))
-    ee4 = recombine(obj = resES, task = tsk, measures = mmce, parset = list(init = 2, bagtime = 10, replace = TRUE))
+    ee4 = recombine(obj = resES, task = tsk, measures = mmce, parset = list(init = 2, bagtime = 10, replace = TRUE, maxiter = 20))
     ee5 = recombine(obj = resES, task = tsk, measures = mmce, parset = list(init = 5, bagprob = .7, bagtime = 10, replace = TRUE))
     # check if new settings for es1 are adopted 
     expect_is(ee1$res.model, "list")
@@ -46,15 +47,15 @@ test_that("Recombine", {
     es1 = recombine(obj = resES, task = tsk, measures = mmce, super.learner = makeLearner("classif.rpart"))
     es2 = recombine(obj = resES, task = tsk, measures = list(mmce), super.learner = makeLearner("classif.rpart", predict.type = "prob"))
     es3 = recombine(obj = resES, task = tsk, measures = list(mmce, acc), super.learner = makeLearner("classif.rpart"))
-    es4 = recombine(obj = resES, task = tsk, measures = list(mmce, acc), super.learner = makeLearner("classif.kknn"))
-    es5 = recombine(obj = resES, task = tsk, measures = list(mmce, acc), super.learner = makeLearner("classif.kknn"))
+    es4 = recombine(obj = resES, task = tsk, measures = list(mmce, acc), super.learner = makeLearner("classif.kknn"), use.feat = TRUE)
+    #es5 = recombine(obj = resES, task = tsk, measures = list(mmce, acc), super.learner = makeLearner("classif.kknn"))
     # check if new settings for sl1 are adopted    
     expect_is(es1$res.model, "list")
     expect_equal(length(es1$res.model), rdesc$iters)
     expect_is(es1$res.model[[1]], "WrappedModel")
-    resES = list(ee1, ee2, ee3, ee4, ee5, es1, es2, es3, es4, es5)
+    resES = list(ee1, ee2, ee3, ee4, ee5, es1, es2, es3, es4)
     # check if all models contain results (non-NAs)
-    expect_equal(anyNA(lapply(1:10, function(x) resES[[x]]$aggr)), FALSE)
+    expect_equal(anyNA(lapply(seq_along(resES), function(x) resES[[x]]$aggr)), FALSE)
     # FIXME: more tests
     
     
@@ -63,16 +64,16 @@ test_that("Recombine", {
     ss1 = recombine(obj = resSL, task = tsk, measures = mmce, super.learner = makeLearner("classif.rpart", predict.type = "prob"))
     ss2 = recombine(obj = resSL, task = tsk, measures = list(mmce), super.learner = makeLearner("classif.rpart"))
     ss3 = recombine(obj = resSL, task = tsk, measures = list(mmce, acc), super.learner = makeLearner("classif.rpart"))
-    ss4 = recombine(obj = resSL, task = tsk, measures = list(mmce, acc), super.learner = makeLearner("classif.kknn"))
-    ss5 = recombine(obj = resSL, task = tsk, measures = list(acc), super.learner = makeLearner("classif.kknn"))
+    ss4 = recombine(obj = resSL, task = tsk, measures = list(mmce, acc), super.learner = makeLearner("classif.kknn"), use.feat = TRUE)
+    #ss5 = recombine(obj = resSL, task = tsk, measures = list(acc), super.learner = makeLearner("classif.kknn"))
     # check if new settings for sl1 are adopted    
     expect_is(ss1$res.model, "list")
     expect_equal(length(ss1$res.model), rdesc$iters)
     expect_is(ss1$res.model[[1]], "WrappedModel")
     
-    resSL = list(ss1, ss2, ss3, ss4, ss5)
+    resSL = list(ss1, ss2, ss3, ss4)
     # check if all models contain results (non-NAs)
-    expect_equal(anyNA(lapply(1:5, function(x) resSL[[x]]$aggr)), FALSE)
+    expect_equal(anyNA(lapply(seq_along(resSL), function(x) resSL[[x]]$aggr)), FALSE)
     # FIXME: more tests
   }
 

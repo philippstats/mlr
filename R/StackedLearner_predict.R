@@ -34,6 +34,7 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) { # FI
     sm = .model$learner.model$super.model
     #browser()
     messagef("[Super Learner] Predict %s with %s features on %s observations", sm$learner$id, NCOL(pred.data), NROW(pred.data))
+    print(head(pred.data))
     #mgs = paste("[Super Learner] Predict", sm$task.desc$id, "with",  NCOL(pred.data), "features on", NROW(pred.data), "observations")
     #message(mgs)
     #messagef("There are %s NA in 'pred.data'", sum(is.na(pred.data)))

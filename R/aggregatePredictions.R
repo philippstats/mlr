@@ -4,6 +4,7 @@
 #' (works for regr, classif, multiclass)
 #' 
 #' @param pred.list [list of \code{Predictions}]\cr
+#' @param spt Final predict type, "prob" or "response"
 #' @export
 
 aggregatePredictions = function(pred.list, spt = NULL) {
@@ -22,6 +23,8 @@ aggregatePredictions = function(pred.list, spt = NULL) {
   if (any(pts.unequal)) stopf("Predict type in prediction '1' and '%s' differ. This is not possible!",  which(pts.unequal)[1])
   
   x = unlist(lapply(pred.list, function(x) checkIfNullOrAnyNA(x$data$response)))
+  #print(which(x))
+  #print(pred.list)
   if (any(x)) messagef("Prediction '%s' is broken and will be removed.", which(x))
   pred.list = pred.list[!x]
   

@@ -13,6 +13,7 @@ tsk = subsetTask(pid.task, 1:150)
 pts = c("prob", "response")
 tasks = list(binaryclass.task, multiclass.task)
 
+# tsk = subsetTask(iris.task, c(90:150, 1:89)); pt = "prob"; spt = "prob"
 for (tsk in tasks) {
   for (pt in pts) {
     for (spt in pts) {
@@ -29,7 +30,8 @@ for (tsk in tasks) {
       pr2 = predict(tr2, tsk)
       
       pred.list = list(pr0, pr1, pr2)
-      aggregatePredictions(pred.list[1], spt = spt)
+      like_pr0 = aggregatePredictions(pred.list[1], spt = spt)
+      expect_true(identical(pr0, like_pr0))
       p = aggregatePredictions(pred.list, spt = spt)
       p #%>% print
       perf = performance(p) #%>% print
