@@ -11,8 +11,9 @@ makeRLearner.classif.nnlogreg = function() {
 }
 
 trainLearner.classif.nnlogreg = function(.learner, .task, .subset, .weights = NULL, ...) {
-  f = getTaskFormula(.task, explicit.features = TRUE)
-  data = getTaskData(.task, .subset)
+  task = createDummyFeatures(.task, method = "reference")
+  f = getTaskFormula(task, explicit.features = T)
+  data = getTaskData(task)
   nnlogreg(formula = f, data = data)
 }
 
@@ -61,7 +62,7 @@ nnlogreg = function(formula, data) {
   
   outcome = rownames(attr(terms(formula), "factors"))[1]
   design = model.frame(data)
-  x = as.matrix(model.matrix(formula, data = design))
+  x = as.matrix(model.matrix(formula, data = design)) # FIXME use x, y, not formula. problem for adult task
   #y = as.numeric(data[, match(outcome, colnames(data))]) - 1
   y = as.numeric(data[, outcome]) - 1
   #y %>% head
