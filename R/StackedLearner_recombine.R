@@ -205,7 +205,7 @@ recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL
   runtime = as.numeric(difftime(time2, time1, "sec"))
   
   ### return
-  X = list(learner.id = id, task.id = tsk$task.desc$id, measure.test = measure.test, aggr = aggr, train.preds = train.preds, 
+  X = list(learner.id = id, task.id = task$task.desc$id, measure.test = measure.test, aggr = aggr, train.preds = train.preds, 
        runtime = runtime, super.learner = super.learner, parset = parset, res.model = res.model)
   class(X) = "RecombinedResampleResult"
   return(X)
