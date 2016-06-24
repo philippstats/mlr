@@ -5,8 +5,7 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) { # FI
   sm.pt = .model$learner$predict.type
   bms.pt = unique(extractSubList(.model$learner$base.learners, "predict.type"))
   td = .model$task.desc
-  type = ifelse(td$type == "regr", "regr",
-    ifelse(length(td$class.levels) == 2L, "classif", "multiclassif"))
+  type = getPreciseTaskType(td)
   method = .learner$method
   # average + hill.climb
   if (method %in% c("average", "hill.climb")) {
@@ -27,16 +26,13 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) { # FI
     }
     pred.data = as.data.frame(pred.data)
     if (use.feat) {
-      #feat = .newdata[, colnames(.newdata) %nin% td$target, drop = FALSE] # TODO: there shouldn't be a target present in any case: feat = .newdata
-      #pred.data = cbind(pred.data, feat)
-      pred.data = cbind(pred.data, .newdata)
+      feat = .newdata[, colnames(.newdata) %nin% td$target, drop = FALSE]
+      pred.data = cbind(pred.data, feat)
+      #pred.data = cbind(pred.data, .newdata)
     } 
     sm = .model$learner.model$super.model
-    #browser()
-    messagef("[Super Learner] Predict %s with %s features on %s observations", sm$learner$id, NCOL(pred.data), NROW(pred.data))
-    print(head(pred.data))
-    #mgs = paste("[Super Learner] Predict", sm$task.desc$id, "with",  NCOL(pred.data), "features on", NROW(pred.data), "observations")
-    #message(mgs)
+    messagef("[Super Learner] Predict %s with %s features on %s observations", sm$learner$id, ncol(pred.data), nrow(pred.data))
+    #print(head(pred.data))
     #messagef("There are %s NA in 'pred.data'", sum(is.na(pred.data)))
     final.pred = predict(sm, newdata = pred.data)
   }

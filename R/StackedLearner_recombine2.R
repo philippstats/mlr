@@ -64,9 +64,14 @@ createTask = function(type, data, target) {
   task
 }
 
-getPreciseTaskType = function(task) {
-  type = getTaskType(task)
-  if (type == "classif" & length(task$task.desc$class.levels) > 2)
+#' Get precise type of the task, which is "classif", "multiclassif" or "reg".
+#' @template arg_task_or_desc
+#' @export
+getPreciseTaskType = function(x) {
+  if (any(class(x) == "Task"))
+    x = getTaskDescription(x)
+  type = getTaskType(x)
+  if (type == "classif" & length(x$class.levels) > 2)
     type = "multiclassif"
   type
 }
