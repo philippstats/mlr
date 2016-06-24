@@ -1,11 +1,13 @@
-#' Recombine stacking with new super.learner or new parset for "ens.sel". This is in alpha.
+#' Recombine stacking with new super.learner or new parset for hill.climb. This is in alpha.
 #' 
-#' Instead of compute a whole new resampling procedure just use \code{recombine}. 
+#' Instead of computing a whole new resampling procedure just use \code{recombine}. 
 #' \code{recombine} reuse the already done work from \code{resample}, i.e. 
-#' reuse already fitted base models and reuse level 1 data. Note: This function 
+#' reuse fitted base models and reuse level 1 data. Note: This function 
 #' does not support resample objects with single broken base models (no error 
-#' handling). Moreover models need to present (i.e. save.preds = TRUE in 
-#' akeStackedLearner). 
+#' handling implemented). Moreover models need to present (i.e. save.preds = TRUE in 
+#' makeStackedLearner). When using \code{save.on.disc = TRUE} in makeStackedLearner 
+#' resampling procedures with holdout are allowed only (model names are not unique 
+#' regarding CV fold number).
 #' This function does three things internally to obtain the new predictions.
 #' 1. Obtain Level 1 Data for training set. This is needed to train new superlearner 
 #' or new ensemble selection.
@@ -32,16 +34,16 @@
 #'   makeLearner("classif.rpart", id = "r4", minsplit = 20),
 #'   makeLearner("classif.rpart", id = "r5", minsplit = 25)
 #' )
-#' bls = lapply(BLS, function(x) setPredictType(x, predict.type = "prob"))
+#' bls = lapply(bls, function(x) setPredictType(x, predict.type = "prob"))
 #' ste = makeStackedLearner(id = "stack", bls, resampling = cv3, 
 #'   predict.type = "prob", method = "hill.climb", parset = list(init = 1, 
 #'   bagprob = 0.5, bagtime = 3, metric = mmce))
-#' resres = resample(ste, tsk, cv5, models = TRUE) 
+#' resres = resample(ste, tsk, cv2, models = TRUE) 
 #' re2 = recombine(obj = resres, task = tsk, parset = list(init = 2))
-#' re3 = recombine(obj = resres, task = tsk, measures = list(mmce), parset = list(prob = .2))
-#' re3 = recombine(obj = resres, task = tsk, measures = mmce, parset = list(prob = .2))
+#' re3 = recombine(obj = resres, task = tsk, measures = list(mmce), parset = list(bagprob = .2))
+#' re3 = recombine(obj = resres, task = tsk, measures = mmce, parset = list(bagprob = .2))
 #' re4 = recombine(obj = resres, task = tsk, measures = list(acc), parset = list(bagtime = 10))
-#' re5 = recombine(obj = resres, task = tsk, measures = list(mmce, acc), parset = list(init = 2, prob = .7, bagtime = 10))
+#' re5 = recombine(obj = resres, task = tsk, measures = list(mmce, acc), parset = list(init = 2, bagprob = .7, bagtime = 10))
 #' 
 #' sapply(list(resres, re2, re3, re4, re5), function(x) x$runtime)
 #' sapply(list(resres, re2, re3, re4, re5), function(x) x$aggr)
@@ -51,10 +53,10 @@
 recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL, use.feat = NULL, parset = NULL) {
   ### checks 
   if (is.null(id))
-    id = paste("recombined", super.learner$id, collapse = ".")
+    id = paste("recombined", super.learner$id, collapse = ".") #TODO what about ES uniq name
   assertClass(id, "character")
   assertClass(obj, "ResampleResult")
-  assertClass(task, "Task") # check if tasks from obj and tasks fits
+  assertClass(task, "Task") # TODO check if tasks from obj and tasks fits
   if (is.null(measures))
     measures = list(getDefaultMeasure(task))
   if (class(measures) == "Measure")
@@ -84,14 +86,14 @@ recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL
   if (org.method == "stack.cv" & method == "hill.climb") {
     stopf("Ensemble Selection cannot be applied on top of method 'stack.cv'.")
   }
-  ### 
+  #
   type = getTaskType(task) 
   tn = getTaskTargetNames(task)
   bls.length = length(obj$models[[1]]$learner.model$base.models)
   bls.names = names(obj$models[[1]]$learner.model$base.models)
+  bms.pt = unique(unlist(lapply(seq_len(bls.length), function(x) obj$models[[1]]$learner$base.learners[[x]]$predict.type)))
   folds = length(obj$models)
   #bms.pt = unique(unlist(lapply(seq_len(bls.length), function(x) obj$models[[1]]$learner.model$base.models[[x]]$learner$predict.type)))
-  bms.pt = unique(unlist(lapply(seq_len(bls.length), function(x) obj$models[[1]]$learner$base.learners[[x]]$predict.type)))
   if (length(bms.pt) > 1) stopf("All Base Learner must be of the same predict.type.")
   task.size = getTaskSize(task)
   save.on.disc = obj$models[[1]]$learner$save.on.disc
@@ -141,8 +143,8 @@ recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL
       data.list = vector("list", length = folds)
       for (f in seq_len(folds)) {
         train.idx = train.idxs[[f]]
-        tmp = lapply(seq_len(bls.length), function(x) getResponse(train.level1.datas[[f]][[x]], full.matrix = TRUE))
-        names(tmp) = bls.names
+        tmp = lapply(seq_len(bls.length), function(x) getResponse(train.level1.datas[[f]][[x]], full.matrix = TRUE)) # TODO naming
+        names(tmp) = bls.names #TODO/FIME save as above: write a fct
         if (bms.pt == "prob") { # remove first column for predict.type="prob" (i.e. kind of classif)
           tmp = lapply(tmp, function(x) x[, -1])
         }
@@ -151,7 +153,7 @@ recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL
         tmp[["feat"]] = feat
         }
         tmp[[tn]] = getTaskTargets(task)[train.idx]
-        data.list[[f]] = as.data.frame(tmp)
+        data.list[[f]] = as.data.frame(tmp) # TODO: naming
       }
       train.level1.datas = data.list
     }
@@ -184,8 +186,8 @@ recombine = function(id = NULL, obj, task, measures = NULL, super.learner = NULL
       # saved as "test.level1.preds"
       test.level1.preds[[i]] = createTestPreds(i, base.models[[i]], test.idx = test.idxs[[i]], task, save.on.disc)
       ### train with new parameters
-      res.model[[i]] = applyEnsembleSelection(bls.length = bls.length, 
-        bls.names = bls.names, pred.list = train.level1.preds[[i]], 
+      res.model[[i]] = applyEnsembleSelection(pred.list = train.level1.preds[[i]],
+        bls.length = bls.length, bls.names = bls.names, 
         bls.performance = train.level1.perfs[[i]], parset = parset)
       freq = res.model[[i]]$freq
       current.pred.list = test.level1.preds[[i]]
