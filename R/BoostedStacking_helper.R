@@ -10,6 +10,23 @@
 #'   Measure to apply to "extract from best".
 #' @return [\code{list of x best learners}]
 #' @export
+#' @examples 
+#' tsk = pid.task
+#' lrns = list(
+#'   makeLearner("classif.gbm", distribution = "bernoulli"),
+#'   makeLearner("classif.randomForest", ntree = 3))
+#' bpt = spt = "prob"
+#' lrns = lapply(lrns, setPredictType, bpt)
+#' mm = makeModelMultiplexer(lrns)
+#' ctrl = makeTuneControlRandom(maxit = 3L)
+#' ps = makeModelMultiplexerParamSet(mm,
+#'   makeIntegerParam("n.trees", lower = 1L, upper = 3L),
+#'   makeIntegerParam("interaction.depth", lower = 1L, upper = 2L),
+#'   makeIntegerParam("ntree", lower = 1L, upper = 3L),
+#'   makeIntegerParam("mtry", lower = 1L, upper = getTaskNFeats(tsk)))
+#' tune.res = tuneParams(learner = mm, task = tsk, resampling = cv2, par.set = ps, control = ctrl)
+#' best = makeXBestLearnersFromMMTuneResult(tune.result = tune.res, model.multiplexer = mm, mm.ps = ps, x.best = 2)
+#' best
 
 
 makeXBestLearnersFromMMTuneResult = function(tune.result, model.multiplexer, mm.ps = mm.ps, x.best = 5, measure = mmce) {
@@ -17,6 +34,7 @@ makeXBestLearnersFromMMTuneResult = function(tune.result, model.multiplexer, mm.
   assertClass(tune.result, "TuneResult")
   assertClass(model.multiplexer, "ModelMultiplexer")
   assertClass(measure, "Measure")
+  assertInt(x.best, lower = 1)
   # body
   measure.name = paste0(measure$id, ".test.mean")
   opt.grid = as.data.frame(trafoOptPath(tune.result$opt.path), stringsAsFactors = FALSE)
@@ -30,7 +48,9 @@ makeXBestLearnersFromMMTuneResult = function(tune.result, model.multiplexer, mm.
   j = sapply(opt.grid, is.factor)
   opt.grid[j] = lapply(opt.grid[j], as.character)
   # checks2
-  if(NROW(opt.grid) < x.best) stopf("'x.best' is %s and cannot be set larger than the number of tuning results in '%s", x.best, quote(tune.result))
+  if(NROW(opt.grid) < x.best) {
+    stopf("'x.best' is %s and cannot be set larger than the number of tuning results in '%s", x.best, quote(tune.result))
+  }
   #
   lrns = vector("list", x.best)
   for (i in 1:nrow(opt.grid)) {

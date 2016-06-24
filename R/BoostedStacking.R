@@ -44,30 +44,28 @@
 #' 
 #' 
 
-#TODO: tol als parameter
-
 makeBoostedStackingLearner = function(model.multiplexer = mm, mm.ps = ps, 
   control = ctrl, resampling = cv2, predict.type = "prob",
   measures = mmce, niter = 2L, tolerance = 1e-8) {
-	# do we need an id?
-  # input checks
-	# INSERT IT HERE
+	# dIXME/TODO dFowe need an id?
+  # checks
   assertClass(model.multiplexer, "ModelMultiplexer")
-  assertChoice(predict.type, choices = c("response", "prob"))
-  assertClass(resampling, "ResampleDesc")
   assertClass(mm.ps, "ParamSet")
   assertClass(control, "TuneControlRandom") # for now
+  assertClass(resampling, "ResampleDesc")
+  assertChoice(predict.type, choices = c("response", "prob"))
+  checkMeasures(measures)
   assertInt(niter, lower = 1L)
   assertNumber(tolerance)
-  #FIXME check if mm and ps fit together
+  #TODO check if mm and ps fit together
   # 
   if (model.multiplexer$type == "classif" & model.multiplexer$predict.type == "response" & "factors" %nin% model.multiplexer$properties) {
-    stop("base models in model multiplexer does not support classifcation with factor features, which are created by using predict.type='response' within base learners")
+    stop("Base models in model multiplexer does not support classifcation with factor features, which are created by using predict.type='response' within base learners")
   }
   #check: measures and type
   #
-	par.set = makeParamSet(makeIntegerParam("niter", lower = 1, tunable = FALSE))
-  
+  par.set = makeParamSet(makeIntegerParam("niter", lower = 1, tunable = FALSE))
+
   bsl = makeLearnerBaseConstructor(classes = "BoostedStackingLearner", 
   	id = "boostedStacking", 
   	type = model.multiplexer$type,
@@ -87,6 +85,8 @@ makeBoostedStackingLearner = function(model.multiplexer = mm, mm.ps = ps,
   return(bsl)
 }
 
+
+
 #' @export
 trainLearner.BoostedStackingLearner = function(.learner, .task, .subset, ...) {
   # checks
@@ -94,33 +94,33 @@ trainLearner.BoostedStackingLearner = function(.learner, .task, .subset, ...) {
     bpt = unique(extractSubList(.learner$model.multiplexer$base.learners, "predict.type"))
     spt = .learner$predict.type
     if (any(c(bpt, spt) == "prob")) 
-      stopf("Base learner predict type are '%s' and final predict type is '%s', but both should be 'response' for regression.", bpt, spt)
+      stopf("Base learner predict types are '%s' and final predict type is '%s', but both should be 'response' for regression.", bpt, spt)
   }
   # body
+  niter = .learner$par.vals$niter
+  tolerance = .learner$tolerance
   bms.pt = unique(extractSubList(.learner$model.multiplexer$base.learner, "predict.type"))
   new.task = subsetTask(.task, subset = .subset)
-  niter = .learner$par.vals$niter
   base.models = preds = vector("list", length = niter)
+  
   score = rep(ifelse(.learner$measures$minimize, Inf, -Inf), niter + 1)
   names(score) = c("init.score", paste("not.set", 1:niter, sep = "."))
-  tolerance = .learner$tolerance
-  
+
   for (i in seq_len(niter)) {
-    #messagef("[Iteration] Number %", i, Sys.time())
     # Parameter Tuning
     res = tuneParams(learner = .learner$model.multiplexer, task = new.task, 
       resampling = .learner$resampling, measures = .learner$measures, 
-      par.set = .learner$mm.ps, control = .learner$control, show.info = FALSE)# IDEA: take best from every fold (i.e. anti-correlated/performs best on differnt input spaces/ bagging-like)
+      par.set = .learner$mm.ps, control = .learner$control, show.info = FALSE)
     # Stopping criterium
     score[i+1] = res$y[1]
     names(score)[i+1] = paste(res$x$selected.learner, i, sep = ".")
     shift = score[i] - score[i+1]
     tol.reached = ifelse(.learner$measures$minimize, shift < tolerance, shift > tolerance)
-    #messagef(">force.stop is %s", tol.reached)
+    #messagef(">force.stop is %s", tol.reached
     if (tol.reached) {
-      messagef("[Tolerance Reached] Boosting stopped after %s iterations", i)
+      messagef("[Tolerance Reached] Boosting stopped in iteration %s", i)
       to.rm = i:niter
-      score = score[-c(to.rm + 1)]
+      score = score[-c(to.rm + 1)] # FIXME should it be removed!?
       base.models[to.rm] = NULL
       preds[to.rm] = NULL
       break()
@@ -128,15 +128,16 @@ trainLearner.BoostedStackingLearner = function(.learner, .task, .subset, ...) {
     # create learner, model, prediction
     best.lrn = makeXBestLearnersFromMMTuneResult(tune.result = res,
       model.multiplexer = .learner$model.multiplexer, mm.ps = .learner$mm.ps,
-      x.best = 1, measure = .learner$measures) # FIXME x.best
-    messagef("Best Learner: %s", best.lrn$id)
+      x.best = 1, measure = .learner$measures) # TODO x.best > 1
+    messagef("Best Learner: %s", best.lrn[[1]]$id)
     base.models[[i]] = train(best.lrn[[1]], new.task)
     preds[[i]] = resample(best.lrn[[1]], new.task, resampling = .learner$resampling, 
       measures = .learner$measures, show.info = FALSE)
     # create new task
     if (bms.pt == "prob") {
       new.feat = getPredictionProbabilities(preds[[i]]$pred)
-      # FIXME if new.feat is constant, NA then use the second pred
+      # FIXME if new.feat is constant, NA then use the second pred!?
+      # makeTaskWithNewFeat extra below
       new.task = makeTaskWithNewFeat(task = new.task, 
         new.feat = new.feat, feat.name = paste0("feat.", i))
     } else {
@@ -150,7 +151,8 @@ trainLearner.BoostedStackingLearner = function(.learner, .task, .subset, ...) {
   list(base.models = base.models, score = score[-1], final.task = new.task, pred.train = preds[[length(preds)]])
 }
 
-#predictLearner.BoostedStackingModel = function(.learner, .model, .newdata, ...) {
+
+
 #' @export
 predictLearner.BoostedStackingLearner = function(.learner, .model, .newdata, ...) {
   new.data = .newdata
