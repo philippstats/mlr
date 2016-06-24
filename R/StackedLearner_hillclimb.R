@@ -1,21 +1,35 @@
+#' Train function for hill.climb method
+#' @param learner [list of base learners]
+#' @template arg_task
+#' @param replace [\code{logical(1)}]
+#' @param init [\code{integer(1)}] 
+#' @param bagprob [\code{numeric(1)}]
+#' @param bagtime [\code{integer(1)}]
+#' @param maxiter [\code{integer(1)}]
+#' @param tolerance [\code{numeric(1)}]
+#' @template arg_metric
+#' @export
+
+
 hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagprob = 1, bagtime = 1,
-  metric = NULL, maxiter = NULL, tolerance = 1e-8, ...) {
-  # checks, inits
+  maxiter = NULL, tolerance = 1e-8, metric = NULL, ...) {
+  # checks, defaults
   assertFlag(replace)
   assertInt(init, lower = 1, upper = length(learner$base.learners)) #807
   assertNumber(bagprob, lower = 0, upper = 1)
   assertInt(bagtime, lower = 1)
   if (is.null(metric)) metric = getDefaultMeasure(task)
   assertClass(metric, "Measure")
+  if (is.null(maxiter)) maxiter = length(learner$base.learners)
+  assertInt(maxiter, lower = 1)
+  assertNumber(tolerance)
   
+  id = learner$id
+  save.on.disc = learner$save.on.disc
   td = getTaskDescription(task)
   type = getPreciseTaskType(task) # "regr", "classif", "multiclassif"
   bls = learner$base.learners
-  id = learner$id
-  save.on.disc = learner$save.on.disc
-  if (is.null(maxiter)) maxiter = length(bls)
-  assertInt(maxiter, lower = 1)
-  assertNumber(tolerance)
+  bls.names = names(bls)
 
   if (type != "regr") {
     if (any(extractSubList(bls, "predict.type") == "response"))
@@ -23,22 +37,23 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
   }
   # body
   rin = makeResampleInstance(learner$resampling, task = task)
-  # parallelMap
+  # resampling, train (parallelMap)
   parallelLibrary("mlr", master = FALSE, level = "mlr.stacking", show.info = FALSE)
   exportMlrOptions(level = "mlr.stacking")
   show.info = getMlrOption("show.info")
-  results = parallelMap(doTrainResample, bls, more.args = list(task, rin, measures = metric, show.info, id, save.on.disc), 
+  results = parallelMap(doTrainResample, bls, more.args = list(task, rin, 
+      measures = metric, show.info, id, save.on.disc), 
       impute.error = function(x) x, level = "mlr.stacking")
   
   base.models = lapply(results, function(x) x[["base.models"]])
   resres = lapply(results, function(x) x[["resres"]])
   pred.list = lapply(resres, function(x) x[["pred"]])
-  bls.performance = sapply(resres, function(x) x$aggr) # only use
-#browser()  
-  names(base.models) = names(bls)
-  names(resres) = names(bls) 
-  names(pred.list) = names(bls)
-  names(bls.performance) = names(bls) # this will not be removed below!
+  bls.performance = sapply(resres, function(x) x$aggr) 
+
+  names(base.models) = bls.names
+  names(resres) = bls.names
+  names(pred.list) = bls.names
+  names(bls.performance) = bls.names # this will not be removed below!
   
   # Remove FailureModels which would occur problems later #FIXME!?
   #broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
@@ -56,13 +71,12 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
   }
 
   ensel = applyEnsembleSelection(pred.list = pred.list,
-    bls.length = length(base.models), bls.names = names(base.models), 
+    bls.length = length(base.models), bls.names = bls.names, 
     bls.performance = bls.performance, parset = list(replace = replace, 
     init = init, bagprob = bagprob, bagtime = bagtime, maxiter = maxiter, 
     metric = metric, tolerance = tolerance))
   
-  # TODO current.pred gleich freq*bls gleich 
-  # pred.list is list of Predictions, no data.frame, but I would say that is not needed
+  # return
   list(method = "hill.climb", base.models = base.models, super.model = NULL,
     pred.train = pred.list, bls.performance = bls.performance, 
     weights = ensel$weights, freq = ensel$freq, freq.list = ensel$freq.list)
@@ -71,7 +85,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
 
 
 
-#' ensemble selection algo:
+#' Ensemble selection algo
 #' 
 #' @param pred.list pred.list
 #' @param bls.length bls.length
@@ -83,10 +97,9 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
 
 
 applyEnsembleSelection = function(pred.list = pred.list, bls.length = bls.length,
-  bls.names = bls.names, bls.performance = bls.performance, parset = list(replace = TRUE, init = 1, bagprob = 1, bagtime = 1,
-  metric = NULL, maxiter = NULL, tolerance = 1e-8)) {
-  
-  # parset
+  bls.names = bls.names, bls.performance = bls.performance, parset = list(replace = TRUE, 
+  init = 1, bagprob = 1, bagtime = 1, maxiter = NULL, tolerance = 1e-8, metric = NULL)) {
+  # check
   assertClass(parset, "list")
   # FIXME: Need defaults. should be nicer
   if (is.null(parset$replace)) parset$replace = TRUE
@@ -96,7 +109,8 @@ applyEnsembleSelection = function(pred.list = pred.list, bls.length = bls.length
   if (is.null(parset$metric)) parset$metric = getDefaultMeasure(pred.list[[1]]$task.desc)
   if (is.null(parset$maxiter)) parset$maxiter = bls.length
   if (is.null(parset$tolerance)) parset$tolerance = 1e-8
-      
+    
+  #FIXME: neeeded!? or is parset$bar ok!?  
   replace = parset$replace
   init = parset$init
   bagprob = parset$bagprob
@@ -106,12 +120,13 @@ applyEnsembleSelection = function(pred.list = pred.list, bls.length = bls.length
   tolerance = parset$tolerance
   
   
-  #
+  # setup
   m = bls.length
   freq = rep(0, m)
   names(freq) = bls.names
   freq.list = vector("list", bagtime)
   
+  # outer loop
   for (bagind in seq_len(bagtime)) {
     # bagging of models
     bagsize = ceiling(m * bagprob)
@@ -123,11 +138,10 @@ applyEnsembleSelection = function(pred.list = pred.list, bls.length = bls.length
     sel.algo = NULL
     single.scores = rep(ifelse(metric$minimize, Inf, -Inf), m)
     
-    # inner loop
-    for (i in bagmodel) { #FIX ME use apply
+    for (i in bagmodel) { #FIXME use apply
       single.scores[i] = bls.performance[i] #resres[[i]]$aggr
     }
-    if (metric$minimize) { # FIXME use own func
+    if (metric$minimize) { # FIXME use orderScore
       inds.init = order(single.scores)[1:init]
     } else {
       inds.init = rev(order(single.scores))[1:init] 
@@ -138,46 +152,46 @@ applyEnsembleSelection = function(pred.list = pred.list, bls.length = bls.length
     current.pred = aggregatePredictions(current.pred.list)
     bench.score = metric$fun(pred = current.pred)
     
-    #FIXME: maybe i will need them
     inds.selected = inds.init
     
-    #FIXME: nicht 2. gl BLs hintereinander (ist gewährleistet wenn tolerance > 0)
+    # inner loop
     for (i in seq_along(maxiter)) {
-      #while (flag) {
       temp.score = rep(ifelse(metric$minimize, Inf, -Inf), m)
       for (i in bagmodel) {
         temp.pred.list = append(current.pred.list, pred.list[i])
         aggr.pred = aggregatePredictions(temp.pred.list)
         temp.score[i] = metric$fun(pred = aggr.pred)
       }
-      # order
-      if (metric$minimize) {
+      # order scores
+      if (metric$minimize) { #FIXME use orderScore
         inds.ordered = order(temp.score)
       } else {
         inds.ordered  = rev(order(temp.score)) 
       }
+      # identify best one
       if (!replace) {
         best.ind = setdiff(inds.ordered, inds.selected)[1]
       } else {
         best.ind = inds.ordered[1]
       }
-      # take the 1 best pred
+      # take the best ones score
       new.score = temp.score[best.ind]
+      # check if new ensemble improves overall performance
       if (bench.score - new.score < tolerance) {
-        break() # break inner loop #flag = FALSE
+        break() # break inner loop 
       } else {
         current.pred.list = append(current.pred.list, pred.list[best.ind])
         current.pred = aggregatePredictions(current.pred.list)
         freq[best.ind] = freq[best.ind] + 1
         inds.selected = c(inds.selected, best.ind)
         bench.score = new.score
-        #iter.count = iter.count + 1
       }
-      #if (iter.count >= maxiter) break()
-    } # end while (now for)
+    } 
+    # freq.list lists names of all selected bls in each bagging iteration
     sel.algo = bls.names[inds.selected]
     freq.list[[bagind]] = sel.algo
   }
   weights = freq/sum(freq) #TODO: drop in future?
+  # return
   list(freq = freq, freq.list = freq.list, weights = weights)
 }
