@@ -5,13 +5,14 @@
 setPredictType.StackedLearner = function(learner, predict.type) {
   lrn = setPredictType.Learner(learner, predict.type)
   lrn$predict.type = predict.type
-  if ("super.learner"%in%names(lrn)) lrn$super.learner$predict.type = predict.type
+  if ("super.learner" %in% names(lrn)) lrn$super.learner$predict.type = predict.type
   return(lrn)
 }
 
-# Returns response for correct usage in stackNoCV and stackCV and for predictions
-# also used in average and hill.climb
-# full.matrix only used for predict.type = "prob": only returns positive prob if FALSE, all pred.data otherwise
+#' Returns response from Prediction object in stackNoCV, stackCV, average and hill.climb
+#' @param pred Prediction
+#' @param full.matrix Wether all n prediction values should be returned or in case of binary classification only one 
+#' @export
 getResponse = function(pred, full.matrix = NULL) {
   # if classification with probabilities
   if (pred$predict.type == "prob") {
@@ -26,7 +27,7 @@ getResponse = function(pred, full.matrix = NULL) {
       return(getPredictionProbabilities(pred))
     }
   } else {
-    # if regression task
+    # for regression case
     pred$data$response
   }
 }
@@ -48,20 +49,24 @@ makeSuperLearnerTask = function(type, data, target) {
   }
 }
 
-# Count the ratio (used if base.learner predict.type = "response" and 
-# super.learner predict.type is "prob")
+#' Count the ratio (used if base.learner predict.type = "response" and 
+#' super.learner predict.type is "prob")
+#' @param pred.data Prediction data
+#' @param levels Target levels of classifiaction task
+#' @param model.weight Model weights, default is 1/number of data points
+#' export
 rowiseRatio = function(pred.data, levels, model.weight = NULL) {
   m = length(levels)
   p = ncol(pred.data)
   if (is.null(model.weight)) {
     model.weight = rep(1/p, p)
   }
-  mat = matrix(0,nrow(pred.data),m)
+  mat = matrix(0,nrow(pred.data), m)
   for (i in 1:m) {
-    ids = matrix(pred.data==levels[i], nrow(pred.data), p)
+    ids = matrix(pred.data == levels[i], nrow(pred.data), p)
     for (j in 1:p)
-      ids[,j] = ids[,j]*model.weight[j]
-    mat[,i] = rowSums(ids)
+      ids[, j] = ids[, j] * model.weight[j]
+    mat[, i] = rowSums(ids)
   }
   colnames(mat) = levels
   return(mat)
@@ -69,7 +74,12 @@ rowiseRatio = function(pred.data, levels, model.weight = NULL) {
 
 
 #' Training and prediction in one function (used for parallelMap)
-#'
+#' @param bls [list of base.learner]
+#' @param task [Task]
+#' @param show.info show.info
+#' @param id Id needed to create unique model name 
+#' @param save.on.disc save.on.disc
+
 doTrainPredict = function(bls, task, show.info, id, save.on.disc) {
   setSlaveOptions()
   model = train(bls, task)
@@ -90,7 +100,13 @@ doTrainPredict = function(bls, task, show.info, id, save.on.disc) {
 }
 
 #' Resampling and prediction in one function (used for parallelMap)
-#' 
+#' @param bls [list of base.learner]
+#' @param task [Task]
+#' @param rin Resample Description
+#' @param measures Measures for resampling
+#' @param show.info show.info
+#' @param id Id needed to create unique model name 
+#' @param save.on.disc save.on.disc
 doTrainResample = function(bls, task, rin, measures, show.info, id, save.on.disc) {
   setSlaveOptions()
   model = train(bls, task)
@@ -134,14 +150,14 @@ orderScore = function(scores, minimize, init) {
   }
 }
 
+#' Convert models names (when model was saved on disc) to base learner name
+#' @param base.model.id Unique ID used to save model on disc
+#' @param stack.id ID from makeStackedLearner
 convertModelNameToBlsName = function(base.model.id, stack.id) {
   id = substr(base.model.id, 1, nchar(base.model.id)-6) # remove .RData
   id = substr(id, 13 + nchar(stack.id) + 1, nchar(id))  
   id
 }
-
-#base.model.ids = "saved.model.stackES1.randomForest.RData"
-
 
 removeModelsOnDisc = function(stack.id = NULL, bls.ids = NULL) {
   term = paste0("rm saved.model.", stack.id, "*", bls.ids, ".RData")
