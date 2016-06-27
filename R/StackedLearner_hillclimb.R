@@ -7,7 +7,7 @@
 #' @param bagtime [\code{integer(1)}]
 #' @param maxiter [\code{integer(1)}]
 #' @param tolerance [\code{numeric(1)}]
-#' @template arg_metric
+#' @template arg_measures
 #' @export
 
 
@@ -55,20 +55,19 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
   names(pred.list) = bls.names
   names(bls.performance) = bls.names # this will not be removed below!
   
-  # Remove FailureModels which would occur problems later #FIXME!?
-  #broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
-  broke.idx.pl = which(unlist(lapply(pred.list, function(x) anyNA(x$data))))# FIXME?!
-  broke.idx.rr = which(unlist(lapply(resres, function(x) is.na(x$aggr[1]))))
-  #broke.idx = unique(c(broke.idx.bm, broke.idx.rr, broke.idx.pl))
-  broke.idx = unique(c(broke.idx.rr, broke.idx.pl))
-
-  if (length(broke.idx) > 0) {
-    messagef("Base Learner %s is broken and will be removed\n", names(bls)[broke.idx])
-    resres = resres[-broke.idx]
-    #pred.data = pred.data[-broke.idx]
-    base.models = base.models[-broke.idx]
-    pred.list = pred.list[-broke.idx]
-  }
+  ## Remove FailureModels which would occur problems later #FIXME!?
+  ##broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
+  #broke.idx.pl = which(unlist(lapply(pred.list, function(x) anyNA(x$data))))# FIXME?!
+  #broke.idx.rr = which(unlist(lapply(resres, function(x) is.na(x$aggr[1]))))
+  ##broke.idx = unique(c(broke.idx.bm, broke.idx.rr, broke.idx.pl))
+  #broke.idx = unique(c(broke.idx.rr, broke.idx.pl))
+  #if (length(broke.idx) > 0) {
+  #  messagef("Base Learner %s is broken and will be removed\n", names(bls)[broke.idx])
+  #  resres = resres[-broke.idx]
+  #  #pred.data = pred.data[-broke.idx]
+  #  base.models = base.models[-broke.idx]
+  #  pred.list = pred.list[-broke.idx]
+  #}
 
   ensel = applyEnsembleSelection(pred.list = pred.list,
     bls.length = length(base.models), bls.names = bls.names, 

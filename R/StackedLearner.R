@@ -172,43 +172,45 @@ makeStackedLearner = function(id = "stack", base.learners, super.learner = NULL,
 #' @param newdata [\code{data.frame}]\cr
 #' New observations, for which the predictions using the specified base learners should be returned.
 #' Default is \code{NULL} and extracts the base learner predictions that were made during the training.
-#' @param type [\code{character(1)}]\cr 
-#'  \dQuote{pred.data} to obtain predictions as a vector/matrix.
-#'  \dQuote{pred} to obtain predictions as \code{Prediction} object.
 #' @details None.
 #'
 #' @export
-getStackedBaseLearnerPredictions = function(model, newdata = NULL, type = "pred.data") {
-  assertChoice(type, choices = c("pred.data", "pred"))
+
+# @param type [\code{character(1)}]\cr 
+#  \dQuote{pred.data} to obtain predictions as a vector/matrix.
+#  \dQuote{pred} to obtain predictions as \code{Prediction} object.
+#  
+
+getStackedBaseLearnerPredictions = function(model, newdata = NULL){#, type = "pred.data") {
+  #assertChoice(type, choices = c("pred.data", "pred"))
   stack.id = model$learner$id
   # checking
   if (is.null(newdata)) {
-    pred.data = model$learner.model$pred.train
+    pred = model$learner.model$pred.train
   } else {
     # get base learner and predict type
     method = model$learner.model$method
     if (method == "hill.climb") {
       used.bls = names(which(model$learner.model$freq > 0))
-      #bms = model$learner.model$base.models[used.bls]
       bms = model$learner.model$base.models[used.bls]
     } else {
-      #bms = model$learner.model$base.models
       bms = model$learner.model$base.models
     }
     # if (model == "stack.cv") warning("Crossvalidated predictions for new data is not possible for this method.") # and not needes
     # predict prob vectors with each base model
-    pred = pred.data = vector("list", length(bms))
+    #pred = pred.data = vector("list", length(bms))
+    pred = vector("list", length(bms))
     if (model$learner$save.on.disc) {
       for (i in seq_along(bms)) {
         m = readRDS(bms[[i]])
         pred[[i]] = predict(m, newdata = newdata)
-        pred.data[[i]] = getResponse(pred[[i]], full.matrix = ifelse(method %in% c("average", "hill.climb"), TRUE, FALSE))
+        #pred.data[[i]] = getResponse(pred[[i]], full.matrix = ifelse(method %in% c("average", "hill.climb"), TRUE, FALSE))
       }
       bls.ids = sapply(bms, function(x) convertModelNameToBlsName(x, stack.id))
     } else {
       for (i in seq_along(bms)) {
         pred[[i]] = predict(bms[[i]], newdata = newdata)
-        pred.data[[i]] = getResponse(pred[[i]], full.matrix = ifelse(method %in% c("average", "hill.climb"), TRUE, FALSE))
+        #pred.data[[i]] = getResponse(pred[[i]], full.matrix = ifelse(method %in% c("average", "hill.climb"), TRUE, FALSE))
       }
       bls.ids = sapply(bms, function(X) X$learner$id) #names(.learner$base.learners)
     }
@@ -216,21 +218,21 @@ getStackedBaseLearnerPredictions = function(model, newdata = NULL, type = "pred.
     #bls.ids = sapply(bms, function(X) X$learner$id) #names(.learner$base.learners)
     
     names(pred) = bls.ids  #names(.learner$base.learners)
-    names(pred.data) = bls.ids
+    #names(pred.data) = bls.ids
     
     # FIXME I don
-    broke.idx.pd = which(unlist(lapply(pred.data, function(x) checkIfNullOrAnyNA(x))))
-    if (length(broke.idx.pd) > 0) {
-      messagef("Preds '%s' is broken in 'getStackedBaseLearnerPredictions' and will be removed\n", names(bls)[broke.idx])
-      pred.data = pred.data[-broke.idx.pd, drop = FALSE]
-      pred = pred[-broke.idx.pd, drop = FALSE]
-    }
+    #broke.idx.pd = which(unlist(lapply(pred, function(x) checkIfNullOrAnyNA(x))))
+    #if (length(broke.idx.pd) > 0) {
+    #  messagef("Preds '%s' is broken in 'getStackedBaseLearnerPredictions' and will be removed\n", names(bls)[broke.idx])
+    #  pred.data = pred.data[-broke.idx.pd, drop = FALSE]
+    #  pred = pred[-broke.idx.pd, drop = FALSE]
+    #}
   }
-  if (type == "pred") {
-    return(pred)
-  } else {
-    return(pred.data)
-  }
+  #if (type == "pred") {
+  pred
+  #} else {
+  #  return(pred.data)
+  #}
 }
 
 #' @export

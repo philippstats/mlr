@@ -10,7 +10,7 @@ checkStack = function(task, method, base, super, bms.pt, sm.pt, use.feat) {
   }
   if (method == "hill.climb" && bms.pt == "response" && inherits(task, "ClassifTask")) return()
 
-  stk = makeStackedLearner(id = "stack", base, super, method = method, use.feat = use.feat, predict.type = sm.pt)
+  stk = makeStackedLearner(id = "stack", base, super, method = method, use.feat = use.feat, predict.type = sm.pt, save.preds = T)
   #debugonce(trainLearner.StackedLearner)
   tr = train(stk, task)
   pr = predict(tr, task)
@@ -21,8 +21,10 @@ checkStack = function(task, method, base, super, bms.pt, sm.pt, use.feat) {
 
   if (method %nin% c("stack.cv", "hill.climb")) {
     expect_equal(
-      getStackedBaseLearnerPredictions(tr),
-      getStackedBaseLearnerPredictions(tr, newdata = getTaskData(task))
+      #getStackedBaseLearnerPredictions(tr),
+      #getStackedBaseLearnerPredictions(tr, newdata = getTaskData(task))
+      lapply(getStackedBaseLearnerPredictions(tr), function(x) getPredictionResponse(x)),
+      lapply(getStackedBaseLearnerPredictions(tr, newdata = getTaskData(task)), function(x) getPredictionResponse(x))
     )
   }
 }

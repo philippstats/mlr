@@ -32,7 +32,41 @@ getResponse = function(pred, full.matrix = NULL) {
   }
 }
 
+#' Returns response or probabilites from Prediction with the speciality that the 
+#' first feature of a multiclass classification prediction will be removed to 
+#' overcome multicollinearity problems  
+#' @param pred Prediction from predict or resample
+#' @export
+getPredictionDataNonMulticoll = function(pred) {
+  if (any(class(pred) == "ResampleResult")) {
+    pred = pred$pred
+  }
+  pt = pred$predict.type
+  td = pred$task.desc
+  # for prediction from predict
+  #if (!is.null(pred$predict.type)) {
+  #  pt = pred$predict.type
+  #  td = pred$task.desc
+  #} else { # from predictions from resample
+  #  pt = pred$pred$predict.type
+  #  td = pred$pred$task.desc
+  #}
+  # if classification with probabilities
+  if (pt == "prob") {
+      pred.matrix = pred$data[, paste("prob", td$class.levels, sep = ".")]
+      colnames(pred.matrix) = td$class.levels
+      pred.matrix = pred.matrix[, -1, drop = TRUE] # 
+      return(pred.matrix)
+  } else {
+    # for perdict.type = "response"
+    pred$data$response
+  }
+}
+
 # Create a super learner task
+# FIXME: "save" version which rm constant features and features with NAs. BUT 
+# might not be usefull owing to the fact that predictLearner does not know which 
+# features are removed  
 makeSuperLearnerTask = function(type, data, target) {
   keep.idx = colSums(is.na(data)) == 0
   data = data[, keep.idx, drop = FALSE]

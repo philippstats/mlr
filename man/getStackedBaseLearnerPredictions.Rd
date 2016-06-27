@@ -4,7 +4,7 @@
 \alias{getStackedBaseLearnerPredictions}
 \title{Returns the predictions for each base learner.}
 \usage{
-getStackedBaseLearnerPredictions(model, newdata = NULL, type = "pred.data")
+getStackedBaseLearnerPredictions(model, newdata = NULL)
 }
 \arguments{
 \item{model}{[\code{WrappedModel}]\cr Wrapped model, result of train.}
@@ -12,10 +12,6 @@ getStackedBaseLearnerPredictions(model, newdata = NULL, type = "pred.data")
 \item{newdata}{[\code{data.frame}]\cr
 New observations, for which the predictions using the specified base learners should be returned.
 Default is \code{NULL} and extracts the base learner predictions that were made during the training.}
-
-\item{type}{[\code{character(1)}]\cr 
-\dQuote{pred.data} to obtain predictions as a vector/matrix.
-\dQuote{pred} to obtain predictions as \code{Prediction} object.}
 }
 \description{
 Returns the predictions for each base learner.

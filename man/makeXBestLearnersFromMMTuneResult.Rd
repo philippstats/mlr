@@ -26,4 +26,22 @@ Needed to exract fix parameters.}
 \description{
 Creates x best learners from ModelMultiplexer TuneResult.
 }
+\examples{
+tsk = pid.task
+lrns = list(
+  makeLearner("classif.gbm", distribution = "bernoulli"),
+  makeLearner("classif.randomForest", ntree = 3))
+bpt = spt = "prob"
+lrns = lapply(lrns, setPredictType, bpt)
+mm = makeModelMultiplexer(lrns)
+ctrl = makeTuneControlRandom(maxit = 3L)
+ps = makeModelMultiplexerParamSet(mm,
+  makeIntegerParam("n.trees", lower = 1L, upper = 3L),
+  makeIntegerParam("interaction.depth", lower = 1L, upper = 2L),
+  makeIntegerParam("ntree", lower = 1L, upper = 3L),
+  makeIntegerParam("mtry", lower = 1L, upper = getTaskNFeats(tsk)))
+tune.res = tuneParams(learner = mm, task = tsk, resampling = cv2, par.set = ps, control = ctrl)
+best = makeXBestLearnersFromMMTuneResult(tune.result = tune.res, model.multiplexer = mm, mm.ps = ps, x.best = 2)
+best
+}
 

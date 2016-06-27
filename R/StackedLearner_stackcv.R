@@ -1,6 +1,6 @@
 #' Stacking method stackCV uses super.learner to obtain level 1 data and uses inner cross-validation for prediction.
 #'
-#' @param learner [\{code(StackedLearner)}]
+#' @param learner [\code{StackedLearner}]
 #' @template arg_task
 
 stackCV = function(learner, task) {
@@ -14,9 +14,8 @@ stackCV = function(learner, task) {
   id = learner$id
   save.on.disc = learner$save.on.disc
   
-  # 
+  # resampling, training (parallelMap)
   rin = makeResampleInstance(learner$resampling, task = task)
-  # resampling, train (parallelMap)
   parallelLibrary("mlr", master = FALSE, level = "mlr.stacking", show.info = FALSE)
   exportMlrOptions(level = "mlr.stacking")
   show.info = getMlrOption("show.info")
@@ -25,29 +24,26 @@ stackCV = function(learner, task) {
     impute.error = function(x) x, level = "mlr.stacking")
   
   base.models = lapply(results, function(x) x[["base.models"]])
-  pred.data = lapply(results, function(x) try(getResponse(x[["resres"]]$pred, 
-    full.matrix = FALSE), silent = TRUE)) # mulitclass: all; classif: only pos
+  pred.list = lapply(results, function(x) x[["resres"]]) 
+  pred.data = lapply(pred.list, function(x) getPredictionDataNonMulticoll(x))
 
-  names(pred.data) = bls.names
   names(base.models) = bls.names
+  names(pred.list) = bls.names
+  names(pred.data) = bls.names
   
-  # Remove broken models/predictions
-  #broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
-  broke.idx.pd1 = which(unlist(lapply(pred.data, function(x) anyNA(x))))
-  broke.idx.pd2 = which(unlist(lapply(pred.data, function(x) class(x) %nin% c("numeric", "factor", "data.frame"))))
-  #broke.idx = unique(broke.idx.bm, broke.idx.pd)
-  broke.idx = unique(c(broke.idx.pd1, broke.idx.pd2))
-  
-  if (length(broke.idx) > 0) {
-    messagef("Base Learner %s is broken and will be removed\n", names(bls)[broke.idx])
-    base.models = base.models[-broke.idx]
-    pred.data = pred.data[-broke.idx]
-  }
-
-  # remove 1st prediction for multiclassif due to multicollinearity reason (alternative: use getResponse TRUE, and always remove first row)
-  if (type == "multiclassif" && bpt == "prob") { #FIXME: only for "stats" methods
-    pred.data = lapply(pred.data, function(x) x[, -1])
-  }
+  ## Remove broken models/predictions
+  ##broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
+  #broke.idx.pd1 = which(unlist(lapply(pred.data, function(x) anyNA(x))))
+  #broke.idx.pd2 = which(unlist(lapply(pred.data, function(x) class(x) %nin% c("numeric", "factor", "data.frame"))))
+  ##broke.idx = unique(broke.idx.bm, broke.idx.pd)
+  #broke.idx = unique(c(broke.idx.pd1, broke.idx.pd2))
+  #
+  #if (length(broke.idx) > 0) {
+  #  messagef("Base Learner %s is broken and will be removed\n", names(bls)[broke.idx])
+  #  base.models = base.models[-broke.idx]
+  #  pred.list = pred.list[-broke.idx]
+  #  pred.data = pred.data[-broke.idx]
+  #}
   # add true value
   tn = getTaskTargetNames(task)
   pred.data[[tn]] = results[[1]]$resres$pred$data$truth
@@ -66,5 +62,5 @@ stackCV = function(learner, task) {
   super.model = train(learner$super.learner, super.task)
   # return
   list(method = "stack.cv", base.models = base.models,
-       super.model = super.model, pred.train = pred.data)
+       super.model = super.model, pred.train = pred.list)
 }

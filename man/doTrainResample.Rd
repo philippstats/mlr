@@ -6,6 +6,21 @@
 \usage{
 doTrainResample(bls, task, rin, measures, show.info, id, save.on.disc)
 }
+\arguments{
+\item{bls}{[list of base.learner]}
+
+\item{task}{[Task]}
+
+\item{rin}{Resample Description}
+
+\item{measures}{Measures for resampling}
+
+\item{show.info}{show.info}
+
+\item{id}{Id needed to create unique model name}
+
+\item{save.on.disc}{save.on.disc}
+}
 \description{
 Resampling and prediction in one function (used for parallelMap)
 }

@@ -55,11 +55,11 @@
 #' @param data [\code{data.frame}]\cr  Data to use.
 #' @param target [\code{character(1)}]\cr Target to use.
  
-createTask = function(type, data, target) {
+createTask = function(type, data, target, id = deparse(substitute(data))) {
   if (type == "classif") {
-    task = makeClassifTask(data = data, target = target)
+    task = makeClassifTask(id = id, data = data, target = target)
   } else {
-    task = makeRegrTask(data = data, target = target)
+    task = makeRegrTask(id = id, data = data, target = target)
   }
   task
 }
