@@ -2,33 +2,14 @@
 % Please edit documentation in R/StackedLearner_recombine.R
 \name{resampleStackedLearnerAgain}
 \alias{resampleStackedLearnerAgain}
-\title{Rerun a alreday done outer resample for a StackedLearner again with new settings.
-Instead of computing a whole new resampling procedure just use \code{resampleStackedLearnerAgain}. 
-\code{resampleStackedLearnerAgain} reuses the already done work in a \code{ResampleResult}, i.e. 
-reuse fitted base models (needed for level 1 test data) and reuse level 1 training data. 
-Note: This function does not support resample objects with single broken base models (no error 
-handling implemented). Moreover models need to present (i.e. save.preds = TRUE in 
-\code{makeStackedLearner}). When using \code{save.on.disc = TRUE} in makeStackedLearner 
-resampling procedures with holdout are allowed only (model names are not unique 
-regarding CV fold number).
-This function does four things internally to obtain the new predictions.
-\describe{
-\item{1.}{Extract level 1 train data.}
-\item{2.}{Fit new super learner or apply new ensemble selection setting using level 1 train data.}
-\item{3.}{Use saved base models on test data to predict level 1 test data}
-\item{4.}{Apply model from (2) on level 1 test data from (3) to obtain final prediction}
-}
-For method stack.cv \code{super.learner} and \code{use.feat} need to be set. 
-For \code{hill.climb} \code{parset} need to be set. 
-Method \code{average} is not supported (use no inner resampling).}
 \usage{
 resampleStackedLearnerAgain(id = NULL, obj, task, measures = NULL,
   super.learner = NULL, use.feat = NULL, parset = NULL)
 }
 \arguments{
-\item{id}{[\code{character(1)}]\cr Unique ID for object}
+\item{id}{[\code{character(1)}]\cr Unique ID for object.}
 
-\item{obj}{[\code{ResampleResult}]\cr Object using \code{StackedLearner} as learner.}
+\item{obj}{[\code{ResampleResult}]\cr \code{ResampleResult} from \code{StackedLearner}.}
 
 \item{task}{[\code{\link{Task}}]\cr
 The task.}
@@ -42,27 +23,6 @@ Default is the default measure for the task, see here \code{\link{getDefaultMeas
 \item{use.feat}{[\code{logical(1)}]\cr Whether the original features should be passed to the super learner.}
 
 \item{parset}{[\code{list}]\cr List containing parameters for \code{hill.climb}. See \code{\link{makeStackedLearner}}.}
-}
-\description{
-Rerun a alreday done outer resample for a StackedLearner again with new settings.
-Instead of computing a whole new resampling procedure just use \code{resampleStackedLearnerAgain}. 
-\code{resampleStackedLearnerAgain} reuses the already done work in a \code{ResampleResult}, i.e. 
-reuse fitted base models (needed for level 1 test data) and reuse level 1 training data. 
-Note: This function does not support resample objects with single broken base models (no error 
-handling implemented). Moreover models need to present (i.e. save.preds = TRUE in 
-\code{makeStackedLearner}). When using \code{save.on.disc = TRUE} in makeStackedLearner 
-resampling procedures with holdout are allowed only (model names are not unique 
-regarding CV fold number).
-This function does four things internally to obtain the new predictions.
-\describe{
-\item{1.}{Extract level 1 train data.}
-\item{2.}{Fit new super learner or apply new ensemble selection setting using level 1 train data.}
-\item{3.}{Use saved base models on test data to predict level 1 test data}
-\item{4.}{Apply model from (2) on level 1 test data from (3) to obtain final prediction}
-}
-For method stack.cv \code{super.learner} and \code{use.feat} need to be set. 
-For \code{hill.climb} \code{parset} need to be set. 
-Method \code{average} is not supported (use no inner resampling).
 }
 \examples{
 tsk = pid.task

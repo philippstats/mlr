@@ -1,25 +1,30 @@
-#' Rerun a alreday done outer resample for a StackedLearner again with new settings.
-
-#' Instead of computing a whole new resampling procedure just use \code{resampleStackedLearnerAgain}. 
-#' \code{resampleStackedLearnerAgain} reuses the already done work in a \code{ResampleResult}, i.e. 
+#' Rerun an outer resampling procedure for a \code{StackedLearner} with a new setting.
+#' 
+#' Instead of rerun \code{resample} with a new setting just use \code{resampleStackedLearnerAgain} a new resampling procedure (with its model training and fitting). 
+#' \code{resampleStackedLearnerAgain} reuses the already done work from a \code{ResampleResult}, i.e. 
 #' reuse fitted base models (needed for level 1 test data) and reuse level 1 training data. 
-#'Note: This function does not support resample objects with single broken base models (no error 
+#' Note: This function does not support resample objects with single broken base models (no error 
 #' handling implemented). Moreover models need to present (i.e. save.preds = TRUE in 
-#' \code{makeStackedLearner}). When using \code{save.on.disc = TRUE} in makeStackedLearner 
-#' resampling procedures with holdout are allowed only (model names are not unique 
+#' \code{makeStackedLearner}). When using \code{save.on.disc = TRUE} in \code{makeStackedLearner} 
+#' resampling procedure \code{"Holdout"} is allowed only (model names are not unique 
 #' regarding CV fold number).
 #' This function does four things internally to obtain the new predictions.
 #' \describe{
-#' \item{1.}{Extract level 1 train data.}
-#' \item{2.}{Fit new super learner or apply new ensemble selection setting using level 1 train data.}
-#' \item{3.}{Use saved base models on test data to predict level 1 test data}
-#' \item{4.}{Apply model from (2) on level 1 test data from (3) to obtain final prediction}
+#' \item{1.}{Use saved base models (from \code{obj}) on test data to predict level 1 test data.}
+#' \item{2.}{Extract level 1 train data (from \code{obj}).}
+#' \item{3.}{Fit new super learner or apply new ensemble selection setting using level 1 train data.}
+#' \item{4.}{Apply model from (3) on level 1 test data from (1) to obtain final prediction.}
 #' }
-#' For method stack.cv \code{super.learner} and \code{use.feat} need to be set. 
-#' For \code{hill.climb} \code{parset} need to be set. 
-#' Method \code{average} is not supported (use no inner resampling).
-#' @param id [\code{character(1)}]\cr Unique ID for object
-#' @param obj [\code{ResampleResult}]\cr Object using \code{StackedLearner} as learner.
+#' For
+#' \describe{
+#' \item{{method  = "stack.cv"}{\code{super.learner} and \code{use.feat} need to be set.}
+#' \item{{method = "hill.climb"}{\code{parset} need to be set.} 
+#' }
+#' \describe{
+#' \item{{method = "average"}{is not supported (does not use inner cross valiaation).} 
+#' }
+#' @param id [\code{character(1)}]\cr Unique ID for object.
+#' @param obj [\code{ResampleResult}]\cr \code{ResampleResult} from \code{StackedLearner}.
 #' @param super.learner [\code{Learner}]\cr New \code{super.learner} to apply.
 #' @param use.feat [\code{logical(1)}]\cr Whether the original features should be passed to the super learner.
 #' @param parset [\code{list}]\cr List containing parameters for \code{hill.climb}. See \code{\link{makeStackedLearner}}.
