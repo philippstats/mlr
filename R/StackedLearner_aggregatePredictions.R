@@ -1,16 +1,16 @@
-#' Aggregate Predictions
+#' Aggregate predictions
 #' 
 #' Aggregate predicitons results by averaging (for \code{regr}, and  \code{classif} with prob) or mode ( \code{classif} with response). 
 #' (works for regr, classif, multiclass)
 #' 
 #' @param pred.list [list of \code{Predictions}]\cr
-#' @param spt Final predict type, "prob" or "response"
+#' @param sm.pt Final predict type, "prob" or "response"
 #' @export
 
-aggregatePredictions = function(pred.list, spt = NULL) {
+aggregatePredictions = function(pred.list, sm.pt = NULL) {
   # return pred if list only contains one pred
   if (length(pred.list) == 1) {
-    #messagef("'pred.list' has only one prediction and returns that one unlisted. Argument 'spt' will not be applied.")
+    #messagef("'pred.list' has only one prediction and returns that one unlisted. Argument 'sm.pt' will not be applied.")
     return(pred.list[[1]])
   }
   # Check if "equal"
@@ -36,9 +36,9 @@ aggregatePredictions = function(pred.list, spt = NULL) {
   id = pred1$data$id
   tr = pred1$data$truth
   pt = pred1$predict.type
-  if (is.null(spt)) spt = pt
+  if (is.null(sm.pt)) sm.pt = pt
   
-  assertChoice(spt, choices = c("prob", "response"))
+  assertChoice(sm.pt, choices = c("prob", "response"))
   ti = NA_real_
   pred.length = length(pred.list) 
   
@@ -47,21 +47,21 @@ aggregatePredictions = function(pred.list, spt = NULL) {
   if (type == "classif") {
     # pt = "prob"
     if (pt == "prob") {
-      # same method for spt response and prob
+      # same method for sm.pt response and prob
       preds = lapply(pred.list, getPredictionProbabilities, cl = td$class.levels)
       y = Reduce("+", preds) / pred.length
-      if (spt == "response") {
+      if (sm.pt == "response") {
         y = factor(max.col(y), labels = td$class.levels)
       }
     # pt = "response"
     } else {
-      if (spt == "response") {
+      if (sm.pt == "response") {
         preds = as.data.frame(lapply(pred.list, getPredictionResponse))
         y = factor(apply(preds, 1L, computeMode), td$class.levels)
       } else {
         # rowiseRatio copied from Tong He (he said it's not the best solution). 
         # This method should be rarely used, because pt = "response", 
-        # spt = "prob" should perfrom worse than setting pt = "prob" (due to 
+        # sm.pt = "prob" should perfrom worse than setting pt = "prob" (due to 
         # information loss when convertring probs to factors)
         preds = as.data.frame(lapply(pred.list, function(x) x$data$response))
         y = rowiseRatio(preds, td$class.levels, model.weight = NULL)
@@ -72,7 +72,7 @@ aggregatePredictions = function(pred.list, spt = NULL) {
     preds = lapply(pred.list, getPredictionResponse)
     y = Reduce("+", preds)/pred.length
   }
-  return(makePrediction(task.desc = td, rn, id = id, truth = tr, predict.type = spt, predict.threshold = NULL, y, time = ti))
+  return(makePrediction(task.desc = td, rn, id = id, truth = tr, predict.type = sm.pt, predict.threshold = NULL, y, time = ti))
 }
 
 # FIXME: clean up naming

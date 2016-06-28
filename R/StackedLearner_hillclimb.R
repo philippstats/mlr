@@ -1,19 +1,20 @@
 #' Train function for hill.climb method
+#' 
 #' @param learner [list of base learners]
 #' @template arg_task
 #' @param replace [\code{logical(1)}]
-#' @param init [\code{integer(1)}] 
-#' @param bagprob [\code{numeric(1)}]
-#' @param bagtime [\code{integer(1)}]
-#' @param maxiter [\code{integer(1)}]
-#' @param tolerance [\code{numeric(1)}]
+#' @param init [\code{integer(1)}] init >= 1
+#' @param bagprob [\code{numeric(1)}] 0 < bagprob < 1
+#' @param bagtime [\code{integer(1)}] bagtime >= 1
+#' @param maxiter [\code{integer(1)}] maxiter >= 1
+#' @param tolerance [\code{numeric(1)}] small numeric value.
 #' @template arg_measures
 #' @export
 
 
 hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagprob = 1, bagtime = 1,
   maxiter = NULL, tolerance = 1e-8, metric = NULL, ...) {
-  # checks, defaults
+  # check, defaults
   assertFlag(replace)
   assertInt(init, lower = 1, upper = length(learner$base.learners)) #807
   assertNumber(bagprob, lower = 0, upper = 1)
@@ -24,20 +25,21 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
   assertInt(maxiter, lower = 1)
   assertNumber(tolerance)
   
+  # setup
   id = learner$id
   save.on.disc = learner$save.on.disc
   td = getTaskDescription(task)
   type = getPreciseTaskType(task) # "regr", "classif", "multiclassif"
   bls = learner$base.learners
   bls.names = names(bls)
-
+  # check
   if (type != "regr") {
     if (any(extractSubList(bls, "predict.type") == "response"))
       stop("Hill climbing algorithm only takes probability predict type for classification.")
   }
-  # body
-  rin = makeResampleInstance(learner$resampling, task = task)
+  
   # resampling, train (parallelMap)
+  rin = makeResampleInstance(learner$resampling, task = task)
   parallelLibrary("mlr", master = FALSE, level = "mlr.stacking", show.info = FALSE)
   exportMlrOptions(level = "mlr.stacking")
   show.info = getMlrOption("show.info")
@@ -84,16 +86,17 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
 
 
 
-#' Ensemble selection algo
+#' Ensemble selection algorithm
 #' 
-#' @param pred.list pred.list
-#' @param bls.length bls.length
-#' @param bls.names bls.names
-#' @param bls.performance bls.performance
-#' @param parset parset
-#' @param parset list of parset
+#' @param pred.list pred.list.
+#' @param bls.length bls.length (TODO remove me).
+#' @param bls.names bls.names.
+#' @param bls.performance bls.performance as names list.
+#' @param parset list of parameters. See /code{/{link{makeStackedLearner}}}.
+#' @references Caruana, Rich, et al. "Ensemble selection from libraries of models." 
+#'   Proceedings of the twenty-first international conference on Machine learning. 
+#'   ACM, 2004. \url{http://www.cs.cornell.edu/~caruana/ctp/ct.papers/caruana.icml04.icdm06long.pdf}
 #' @export
-
 
 applyEnsembleSelection = function(pred.list = pred.list, bls.length = bls.length,
   bls.names = bls.names, bls.performance = bls.performance, parset = list(replace = TRUE, 
@@ -118,14 +121,13 @@ applyEnsembleSelection = function(pred.list = pred.list, bls.length = bls.length
   metric = parset$metric
   tolerance = parset$tolerance
   
-  
   # setup
   m = bls.length
   freq = rep(0, m)
   names(freq) = bls.names
   freq.list = vector("list", bagtime)
   
-  # outer loop
+  # outer loop (bagging iterations)
   for (bagind in seq_len(bagtime)) {
     # bagging of models
     bagsize = ceiling(m * bagprob)

@@ -1,4 +1,5 @@
-
+### old/not maintained stacking methods ###
+ 
 # stacking where we predict the training set in-sample, then super-learn on that
 stackNoCV = function(learner, task) {
   td = getTaskDescription(task)

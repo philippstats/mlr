@@ -1,27 +1,25 @@
 #' @export
 predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) { # FIXME actually only .learner$method is needed
-  # prep
+  # setup
   use.feat = .model$learner$use.feat
   sm.pt = .model$learner$predict.type
   bms.pt = unique(extractSubList(.model$learner$base.learners, "predict.type"))
   td = .model$task.desc
-  type = getPreciseTaskType(td)
   method = .learner$method
 
-  pred.list = getStackedBaseLearnerPredictions(model = .model, newdata = .newdata)#, type = "pred")
-  #if (method %in% c("average", "hill.climb")) {
+  # obtain predictions
+  pred.list = getStackedBaseLearnerPredictions(model = .model, newdata = .newdata)
 
-  # average 
+  # apply average 
   if (method == "average") {
     final.pred = aggregatePredictions(pred.list, spt = sm.pt)
-  # hill.climb
+  # apply hill.climb
   } else if (method == "hill.climb") {
     freq = .model$learner.model$freq
     pred.list = expandPredList(pred.list, freq = freq)
     final.pred = aggregatePredictions(pred.list, spt = sm.pt)
-  # stack.cv
+  # apply stack.cv
   } else if (method == "stack.cv") {
-#browser()
     pred.data = lapply(pred.list, function(x) getPredictionDataNonMulticoll(x))
     pred.data = as.data.frame(pred.data)
     #names(pred.data) =  extractSubList(.model$learner$base.learners, "id") # FIXME WROGN (multiclass)
@@ -39,7 +37,7 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) { # FI
   if (sm.pt == "prob") {
     return(as.matrix(getPredictionProbabilities(final.pred, cl = td$class.levels)))
   } else {
-    return(final.pred$data$response) #getPredictionResponse?
+    return(final.pred$data$response) #FIXME getPredictionResponse?
   }
 }
 

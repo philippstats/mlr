@@ -1,4 +1,4 @@
-# super simple averaging of base-learner predictions without weights. we should beat this
+# simple averaging of baselearner predictions without weights
 averageBaseLearners = function(learner, task) {
   id = learner$id
   save.on.disc = learner$save.on.disc
@@ -12,13 +12,10 @@ averageBaseLearners = function(learner, task) {
   show.info = getMlrOption("show.info")
   results = parallelMap(doTrainPredict, bls, more.args = list(task, show.info, id, save.on.disc), impute.error = function(x) x, level = "mlr.stacking")
 
-  #base.models = lapply(results, function(x) x[["base.models"]])
   base.models = lapply(results, function(x) x[["base.models"]])
   pred.list = lapply(results, function(x) x[["pred"]])
-  #pred.data = lapply(results, function(x) try(getResponse(x[["pred"]], full.matrix = TRUE), silent = TRUE)) #QUEST: Return Predictions instead of data.frame!?
   names(base.models) = bls.names
   names(pred.list) = bls.names
-  #names(pred.data) = bls.names
 
   ##FIXME: Ok way to remove bls1?
   #broke.idx.bm = which(unlist(lapply(base.models, function(x) any(class(x) == "FailureModel"))))
@@ -34,9 +31,8 @@ averageBaseLearners = function(learner, task) {
   #  #pred.data = pred.data[-broke.idx]
   #}
   
-  if (save.preds == FALSE) pred.list = NULL
-  
   # return
+  if (save.preds == FALSE) pred.list = NULL
   list(method = "average", base.models = base.models, super.model = NULL,
-       pred.train = pred.list)
+    pred.train = pred.list)
 }

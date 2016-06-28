@@ -1,14 +1,15 @@
 #' Rerun an outer resampling procedure for a \code{StackedLearner} with a new setting.
 #' 
-#' Instead of rerun \code{resample} with a new setting just use \code{resampleStackedLearnerAgain} a new resampling procedure (with its model training and fitting). 
-#' \code{resampleStackedLearnerAgain} reuses the already done work from a \code{ResampleResult}, i.e. 
+#' Instead of rerun \code{resample} with a new setting just use 
+#' \code{resampleStackedLearnerAgain}. \code{resampleStackedLearnerAgain} reuses 
+#' the already done work from a \code{ResampleResult}, i.e. 
 #' reuse fitted base models (needed for level 1 test data) and reuse level 1 training data. 
 #' Note: This function does not support resample objects with single broken base models (no error 
-#' handling implemented). Moreover models need to present (i.e. save.preds = TRUE in 
+#' handling implemented). Moreover models need to present (i.e. \code{save.preds = TRUE} in 
 #' \code{makeStackedLearner}). When using \code{save.on.disc = TRUE} in \code{makeStackedLearner} 
 #' resampling procedure \code{"Holdout"} is allowed only (model names are not unique 
 #' regarding CV fold number).
-#' This function does four things internally to obtain the new predictions.
+#' This function does four things internally (in that order) to obtain the new predictions:
 #' \describe{
 #' \item{1.}{Use saved base models (from \code{obj}) on test data to predict level 1 test data.}
 #' \item{2.}{Extract level 1 train data (from \code{obj}).}
@@ -17,11 +18,11 @@
 #' }
 #' For
 #' \describe{
-#' \item{{method  = "stack.cv"}{\code{super.learner} and \code{use.feat} need to be set.}
-#' \item{{method = "hill.climb"}{\code{parset} need to be set.} 
+#' \item{method  = "stack.cv"}{\code{super.learner} and \code{use.feat} need to be set.}
+#' \item{method = "hill.climb"}{\code{parset} need to be set.} 
 #' }
 #' \describe{
-#' \item{{method = "average"}{is not supported (does not use inner cross valiaation).} 
+#' \item{method = "average"}{is not supported (does not use inner cross valiaation like "stack.cv" and "hill.climb").} 
 #' }
 #' @param id [\code{character(1)}]\cr Unique ID for object.
 #' @param obj [\code{ResampleResult}]\cr \code{ResampleResult} from \code{StackedLearner}.
@@ -29,7 +30,7 @@
 #' @param use.feat [\code{logical(1)}]\cr Whether the original features should be passed to the super learner.
 #' @param parset [\code{list}]\cr List containing parameters for \code{hill.climb}. See \code{\link{makeStackedLearner}}.
 #' @template arg_task
-#' @template arg_measures
+#' @template arg_measure
 #' @export
 #' @examples 
 #' tsk = pid.task
@@ -45,20 +46,20 @@
 #' ste = makeStackedLearner(id = "stack", bls, resampling = cv3, 
 #'   predict.type = "prob", method = "hill.climb", parset = list(init = 1, 
 #'   bagprob = 0.5, bagtime = 3, metric = mmce))
-#' resres = resample(ste, tsk, cv2, models = TRUE) 
-#' re2 = resampleStackedLearnerAgain(obj = resres, task = tsk, parset = list(init = 2))
-#' re3 = resampleStackedLearnerAgain(obj = resres, task = tsk, measures = list(mmce), parset = list(bagprob = .2))
-#' re3 = resampleStackedLearnerAgain(obj = resres, task = tsk, measures = mmce, parset = list(bagprob = .2))
-#' re4 = resampleStackedLearnerAgain(obj = resres, task = tsk, measures = list(acc), parset = list(bagtime = 10))
-#' re5 = resampleStackedLearnerAgain(obj = resres, task = tsk, measures = list(mmce, acc), parset = list(init = 2, bagprob = .7, bagtime = 10))
+#'# To use resampleStackedLearnerAgain:
+#' # 1. 'models = TRUE' must be set. 
+#' # 2. Cross validation can be set only if 'save.on.disc = FALSE'.
+#' res = resample(ste, tsk, cv2, models = TRUE, save.on.disc = FALSE) 
+#' re2 = resampleStackedLearnerAgain(obj = res, task = tsk, parset = list(init = 2))
+#' re3 = resampleStackedLearnerAgain(obj = res, task = tsk, measures = list(mmce, auc), parset = list(bagprob = .2, bagprob = 10, metric = auc))
+#' re3 = resampleStackedLearnerAgain(obj = res, task = tsk, measures = mmce, parset = list(replace = FALSE, init = 2, bagprob = .2))
+#' re5 = resampleStackedLearnerAgain(obj = res, task = tsk, measures = mmce, super.learner = bls[[1]], use.feat = TRUE)
 #' 
 #' sapply(list(resres, re2, re3, re4, re5), function(x) x$runtime)
 #' sapply(list(resres, re2, re3, re4, re5), function(x) x$aggr)
 
-
-
 resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, super.learner = NULL, use.feat = NULL, parset = NULL) {
-  ### checks 
+  # checks 
   if (is.null(id))
     id = paste("recombined", super.learner$id, collapse = ".") #TODO what about ES uniq name
   assertClass(id, "character")
@@ -80,7 +81,6 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
   if (!is.null(parset)) {
     assertClass(parset, "list")
   }
-
   # method
   org.method = obj$models[[1]]$learner$method
   if (!is.null(super.learner)) {
@@ -146,7 +146,6 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
     # are already a list of data.frame. 
     # If pred.train are predictions (i.e. method=hill.climb) then they must be 
     # converted using getResponse.
-#browser()
     train.level1.preds_f = lapply(obj$models, function(x) x$learner.model$pred.train)
     #if (org.method == "hill.climb") { # pred.train are predictions, no data.frame
     train.level1.task_f = vector("list", length = folds)
@@ -162,7 +161,6 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
       pred.data = as.data.frame(pred.data.list) # TODO: naming
       train.level1.task_f[[f]] = createTask(type, pred.data, target = tn, id = paste0("fold", f))
     }
-#browser()
     # fit super.learner on every fold
     #-train.supermodel = benchmark(super.learner, tasks = train.level1.tasks, resampling = makeResampleDesc("Holdout", predict = "train", split = 1), measures = measures)
     #+ here tuneParam could be applied
@@ -205,7 +203,11 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
       test.preds_f[[f]] = aggregatePredictions(pred.list = current.pred.list)
     }
   }
+  ###
+  ###
   ### measures and runtime 
+  ###   
+  ###   
   m = lapply(train.preds_f, function(x) performance(x, measures = measures))
   measure.train = as.data.frame(do.call(rbind, m))
   measure.train = cbind(iter = 1:NROW(measure.train), measure.train)
@@ -226,10 +228,10 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
     measure.test = measure.test, 
     aggr = aggr, 
     #train.preds = train.preds_f, 
-    pred = test.preds_f, # not 1 ResampleRediction object as in resample but a list of single ResamplePredictions
+    pred = test.preds_f, # not 1 ResampleRediction object as in resample but a list of single ResamplePredictions.
     models = res.model_f,
-    err.msgs = NULL, # no error handling so far
-    extract = NULL, # only works it original resample has modesl = TRUE
+    err.msgs = NULL, # no error handling so far.
+    extract = NULL, # not implemented. 
     runtime = runtime, 
     # extra returns
     super.learner = super.learner, 
