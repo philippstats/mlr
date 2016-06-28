@@ -185,7 +185,7 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
     for (f in seq_len(folds)) {
       ### get TEST level 1 preds, i.e. apply bls models from training on testing data
       # saved as "test.level1.preds"
-      test.level1.preds = createTestPreds(i, base.models_f[[f]], test.idx = test.idxs[[f]], task, save.on.disc)
+      test.level1.preds = createTestPreds(f, base.models_f[[f]], test.idx = test.idxs[[f]], task, save.on.disc)
       ### train with new parameters
       res.model_f[[f]] = applyEnsembleSelection(pred.list = train.level1.preds_f[[f]],
         bls.length = bls.length, bls.names = bls.names, 
