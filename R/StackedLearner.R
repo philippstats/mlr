@@ -122,11 +122,11 @@ makeStackedLearner = function(id = "stack", method = "stack.nocv", base.learners
     assertClass(resampling, "NULL")
   }
 
-  bpt = unique(extractSubList(base.learners, "predict.type"))
-  #if ("se" %in% bpt | (!is.null(predict.type) && predict.type == "se") |
+  bm.pt = unique(extractSubList(base.learners, "predict.type"))
+  #if ("se" %in% bm.pt | (!is.null(predict.type) && predict.type == "se") |
   #      (!is.null(super.learner) && super.learner$predict.type == "se"))
   #  stop("Predicting standard errors currently not supported.")
-  if (length(bpt) > 1L)
+  if (length(bm.pt) > 1L)
     stop("Base learner must all have the same predict type!")
   if ((method %in% c("average", "hill.climb")) & (!is.null(super.learner) | is.null(predict.type)) )
     stop("No super learner needed for this method or the 'predict.type' is not specified.")

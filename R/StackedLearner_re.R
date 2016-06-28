@@ -58,6 +58,10 @@
 #' sapply(list(resres, re2, re3, re4, re5), function(x) x$runtime)
 #' sapply(list(resres, re2, re3, re4, re5), function(x) x$aggr)
 
+# Singular indicates objects which contain only one information (e.g. one model from base models list from one fold).
+# Plural indicates a list of objects (e.g. list of learners, models, data sets).
+# List ends with '_f' if information from all f folds are saved in that object (may be a list of lists).
+ 
 resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, super.learner = NULL, use.feat = NULL, parset = NULL) {
   # checks 
   if (is.null(id))
@@ -83,6 +87,9 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
   }
   # method
   org.method = obj$models[[1]]$learner$method
+  if (org.method == "average") {
+    stopf("Method %s needs cross validated predictions from method 'stack.cv.' or 'hill.climb' in resample, which is not the case for used method 'average'.", method)
+  }
   if (!is.null(super.learner)) {
     assertClass(super.learner, "Learner")
     method = "stack.cv"
@@ -98,10 +105,10 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
   tn = getTaskTargetNames(task)
   bls.length = length(obj$models[[1]]$learner.model$base.models)
   bls.names = names(obj$models[[1]]$learner.model$base.models)
-  bms.pt = unique(unlist(lapply(seq_len(bls.length), function(x) obj$models[[1]]$learner$base.learners[[x]]$predict.type)))
+  bm.pt = unique(unlist(lapply(seq_len(bls.length), function(x) obj$models[[1]]$learner$base.learners[[x]]$predict.type)))
   folds = length(obj$models)
-  #bms.pt = unique(unlist(lapply(seq_len(bls.length), function(x) obj$models[[1]]$learner.model$base.models[[x]]$learner$predict.type)))
-  if (length(bms.pt) > 1) stopf("All Base Learner must be of the same predict.type.")
+  #bm.pt = unique(unlist(lapply(seq_len(bls.length), function(x) obj$models[[1]]$learner.model$base.models[[x]]$learner$predict.type)))
+  if (length(bm.pt) > 1) stopf("All Base Learner must be of the same predict.type.")
   task.size = getTaskSize(task)
   save.on.disc = obj$models[[1]]$learner$save.on.disc
   
