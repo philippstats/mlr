@@ -57,7 +57,8 @@ stackCV = function(learner, task) {
     pred.data = cbind(pred.data, org.feat)
   } 
   super.task = makeSuperLearnerTask(learner$super.learner$type, data = pred.data, target = tn)
-  messagef("[Super Learner] Train %s with %s features on %s observations", learner$super.learner$id, getTaskNFeats(super.task), getTaskSize(super.task))
+  if (show.info)
+    messagef("[Super Learner] Train %s with %s features on %s observations", learner$super.learner$id, getTaskNFeats(super.task), getTaskSize(super.task))
   super.model = train(learner$super.learner, super.task)
   # return
   list(method = "stack.cv", base.models = base.models,

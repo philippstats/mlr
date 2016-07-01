@@ -3,7 +3,8 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) { # FI
   # setup
   use.feat = .model$learner$use.feat
   sm.pt = .model$learner$predict.type
-  bms.pt = unique(extractSubList(.model$learner$base.learners, "predict.type"))
+  bm.pt = unique(extractSubList(.model$learner$base.learners, "predict.type"))
+  if (length(bm.pt) > 1) stopf("Prediction types of all base learners must be identical.")
   td = .model$task.desc
   method = .learner$method
 
@@ -12,12 +13,12 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) { # FI
 
   # apply average 
   if (method == "average") {
-    final.pred = aggregatePredictions(pred.list, spt = sm.pt)
+    final.pred = aggregatePredictions(pred.list, sm.pt = sm.pt)
   # apply hill.climb
   } else if (method == "hill.climb") {
     freq = .model$learner.model$freq
     pred.list = expandPredList(pred.list, freq = freq)
-    final.pred = aggregatePredictions(pred.list, spt = sm.pt)
+    final.pred = aggregatePredictions(pred.list, sm.pt = sm.pt)
   # apply stack.cv
   } else if (method == "stack.cv") {
     pred.data = lapply(pred.list, function(x) getPredictionDataNonMulticoll(x))
@@ -28,7 +29,8 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) { # FI
       pred.data = cbind(pred.data, feat)
     } 
     sm = .model$learner.model$super.model
-    messagef("[Super Learner] Predict %s with %s features on %s observations", sm$learner$id, ncol(pred.data), nrow(pred.data))
+    if (getMlrOption("show.info"))
+      messagef("[Super Learner] Predict %s with %s features on %s observations", sm$learner$id, ncol(pred.data), nrow(pred.data))
     #print(head(pred.data))
     #messagef("There are %s NA in 'pred.data'", sum(is.na(pred.data)))
     final.pred = predict(sm, newdata = pred.data)

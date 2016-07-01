@@ -32,31 +32,42 @@
 #' @template arg_task
 #' @template arg_measure
 #' @export
+#' @return Object of classes "RecombinedResampleResult" and "ResampleResult". 
+#'   "RecombinedResampleResult" differ from classical "ResampleResult" in that way, that it 
+#'   contains parameters from StackedLearner (i.e. super.learner use.feat, parset), 
+#'   but has no error handling (err.msgs = NULL) and no extract functionality (extract = NULL). 
+#'   The returned values 'pred' and 'models' differ as well.
 #' @examples 
 #' tsk = pid.task
-#' bls = list(makeLearner("classif.kknn", id = "k1"), 
-#'   makeLearner("classif.randomForest", id = "f1"),
-#'   makeLearner("classif.rpart", id = "r1", minsplit = 5),
-#'   makeLearner("classif.rpart", id = "r2", minsplit = 10),
-#'   makeLearner("classif.rpart", id = "r3", minsplit = 15),
-#'   makeLearner("classif.rpart", id = "r4", minsplit = 20),
-#'   makeLearner("classif.rpart", id = "r5", minsplit = 25)
+#' # Base learner need unique names (id)
+#' bls = list(makeLearner("classif.kknn", id = "knn1"), 
+#'   makeLearner("classif.randomForest", id = "rf1"),
+#'   makeLearner("classif.rpart", id = "rp1", minsplit = 5),
+#'   makeLearner("classif.rpart", id = "rp2", minsplit = 10),
+#'   makeLearner("classif.rpart", id = "rp3", minsplit = 15),
+#'   makeLearner("classif.rpart", id = "rp4", minsplit = 20),
+#'   makeLearner("classif.rpart", id = "rp5", minsplit = 25)
 #' )
 #' bls = lapply(bls, function(x) setPredictType(x, predict.type = "prob"))
 #' ste = makeStackedLearner(id = "stack", bls, resampling = cv3, 
 #'   predict.type = "prob", method = "hill.climb", parset = list(init = 1, 
-#'   bagprob = 0.5, bagtime = 3, metric = mmce))
-#'# To use resampleStackedLearnerAgain:
-#' # 1. 'models = TRUE' must be set. 
-#' # 2. Cross validation can be set only if 'save.on.disc = FALSE'.
-#' res = resample(ste, tsk, cv2, models = TRUE, save.on.disc = FALSE) 
-#' re2 = resampleStackedLearnerAgain(obj = res, task = tsk, parset = list(init = 2))
+#'   bagprob = 0.5, bagtime = 3, metric = mmce), save.on.disc = FALSE)
+#' # To use resampleStackedLearnerAgain
+#' # - cross validation in outer resampling can be used only if 'save.on.disc = FALSE' in resampleStackedLearnerAgain,
+#' # - in resample 'models = TRUE' must be set.
+#' res = resample(ste, tsk, cv2, models = TRUE) 
+#' re2 = resampleStackedLearnerAgain(obj = res, task = tsk, parset = list(init = 2, bagtime = 15))
 #' re3 = resampleStackedLearnerAgain(obj = res, task = tsk, measures = list(mmce, auc), parset = list(bagprob = .2, bagprob = 10, metric = auc))
 #' re3 = resampleStackedLearnerAgain(obj = res, task = tsk, measures = mmce, parset = list(replace = FALSE, init = 2, bagprob = .2))
-#' re5 = resampleStackedLearnerAgain(obj = res, task = tsk, measures = mmce, super.learner = bls[[1]], use.feat = TRUE)
+#' re4 = resampleStackedLearnerAgain(obj = res, task = tsk, measures = mmce, super.learner = bls[[2]], use.feat = TRUE)
+#' sapply(list(res, re2, re3, re4), function(x) x$aggr)
 #' 
-#' sapply(list(resres, re2, re3, re4, re5), function(x) x$runtime)
-#' sapply(list(resres, re2, re3, re4, re5), function(x) x$aggr)
+#' # Compare running time of idential settings
+#' ste2 = makeStackedLearner(id = "stack", bls, resampling = cv3, 
+#'   predict.type = "prob", method = "hill.climb", parset = list(init = 2, bagtime = 15))
+#' res2 = resample(ste2, tsk, cv2, models = TRUE) 
+#' sapply(list(res2, re2), function(x) x$runtime)
+
 
 # Singular indicates objects which contain only one information (e.g. one model from base models list from one fold).
 # Plural indicates a list of objects (e.g. list of learners, models, data sets).
@@ -248,3 +259,19 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
   return(X)
 }
 
+
+
+# TODO
+# 
+# - allow "extract = onlybase.models" in resample (not only compulsory models = TRUE) to save more memory.
+# - allow idx arguments that a special fraction of base learners will be used 
+#   (redo resampling with another base learners setting and use the alreday fitted 
+#   models -- so you just have to run a (big) number of base leaernes once and 
+#   then make use of base learners you want to use).
+# - allow tuneParam so that superlearner can be tuned (only menaingful for outer
+#   holdout!?).
+# - run in parallel (but maybe a outer parallelization is more usefull)
+# 
+# 
+# 
+# 
