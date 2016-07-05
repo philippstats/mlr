@@ -100,6 +100,7 @@ applyEnsembleSelection = function(pred.list = pred.list, bls.performance = bls.p
   init = 1, bagprob = 1, bagtime = 1, maxiter = NULL, tolerance = 1e-8, metric = NULL)) {
   # check
   assertClass(parset, "list")
+  # setup
   bls.names = names(pred.list)
   bls.length = length(pred.list)
   
