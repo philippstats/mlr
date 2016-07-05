@@ -128,9 +128,9 @@ applyEnsembleSelection = function(pred.list = pred.list, bls.performance = bls.p
   names(freq) = bls.names
   freq.list = vector("list", bagtime)
   
-  # outer loop (bagging iterations)
+  # outer loop (bagtimes bagging iterations)
   for (bagind in seq_len(bagtime)) {
-    # bagging of models
+    # bagging of models 
     bagsize = ceiling(m * bagprob)
     bagmodel = sample(1:m, bagsize)
     
@@ -140,25 +140,29 @@ applyEnsembleSelection = function(pred.list = pred.list, bls.performance = bls.p
     sel.algo = NULL
     single.scores = rep(ifelse(metric$minimize, Inf, -Inf), m)
     
-    for (i in bagmodel) { #FIXME use apply
-      single.scores[i] = bls.performance[i] #resres[[i]]$aggr
+    # 
+    for (i in bagmodel) { 
+      single.scores[i] = bls.performance[i] 
     }
     if (metric$minimize) { # FIXME use orderScore
       inds.init = order(single.scores)[1:init]
     } else {
       inds.init = rev(order(single.scores))[1:init] 
     }
+    # Increment 'freq' for init best starting values
     freq[inds.init] = freq[inds.init] + 1  
     
+    # Create a list of predictions, aggregate them (averaging) and apply metric to the new prediction
     current.pred.list = pred.list[inds.init]
     current.pred = aggregatePredictions(current.pred.list, pL = FALSE)
     bench.score = metric$fun(pred = current.pred)
     
     inds.selected = inds.init
     
-    # inner loop
-    for (i in seq_along(maxiter)) {
+    # inner loop (adds as many models in current bagging iteration until tolerance or maxiter is reached)
+    for (inneriter in seq_along(maxiter)) {
       temp.score = rep(ifelse(metric$minimize, Inf, -Inf), m)
+      # uniquely add every prediction form the bag to the current prediction and calc. performance
       for (i in bagmodel) {
         temp.pred.list = append(current.pred.list, pred.list[i])
         aggr.pred = aggregatePredictions(temp.pred.list, pL = FALSE)
@@ -170,7 +174,7 @@ applyEnsembleSelection = function(pred.list = pred.list, bls.performance = bls.p
       } else {
         inds.ordered  = rev(order(temp.score)) 
       }
-      # identify best one
+      # identify best one (only one model is added per inner iteration)
       if (!replace) {
         best.ind = setdiff(inds.ordered, inds.selected)[1]
       } else {
@@ -180,7 +184,7 @@ applyEnsembleSelection = function(pred.list = pred.list, bls.performance = bls.p
       new.score = temp.score[best.ind]
       # check if new ensemble improves overall performance
       if (bench.score - new.score < tolerance) {
-        break() # break inner loop 
+        break() # stop inner loop 
       } else {
         current.pred.list = append(current.pred.list, pred.list[best.ind])
         current.pred = aggregatePredictions(current.pred.list, pL = FALSE)
@@ -190,8 +194,8 @@ applyEnsembleSelection = function(pred.list = pred.list, bls.performance = bls.p
       }
     } 
     # freq.list lists names of all selected bls in each bagging iteration
-    sel.algo = bls.names[inds.selected]
-    freq.list[[bagind]] = sel.algo
+    selected.innerloop = bls.names[inds.selected]
+    freq.list[[bagind]] = selected.innerloop
   }
   weights = freq/sum(freq) #TODO: drop in future?
   # return
