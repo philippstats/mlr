@@ -1,5 +1,9 @@
+#' Predict StackedLearner
+#' 
+#' 
+
 #' @export
-predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) { # FIXME actually only .learner$method is needed
+predictLearner.StackedLearner = function(.learner, .model, .newdata) { # FIXME actually only .learner$method is needed
   # setup
   use.feat = .model$learner$use.feat
   sm.pt = .model$learner$predict.type
@@ -51,7 +55,7 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) { # FI
 #'   Prediction made based on models saved in RDS when \code{save.on.disc = TRUE}, otherwise 
 #'   from \cpde{model$learner.model$base.models}.
 #'
-#' @param model [\code{WrappedModel}]\cr Wrapped model, result of train.
+#' @param model [\code{BaseEnsembleModel}]\cr BaseEnsembleModel, result of train.
 #' @param newdata [\code{data.frame}]\cr
 #'   New observations, for which the predictions using the specified base learners should be returned.
 #'   Default is \code{NULL} and extracts the base learner predictions that were made during the training.
