@@ -47,16 +47,14 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata, ...) { # FI
 #'
 #' @description Returns the predictions for each base learner based on \code{newdata}. 
 #'   If \code{newdata} is not supported, training prediction will be returned. 
-#'   For \code{hill.climb} prediction is only applyed to base models which where selected. 
-#'   Prediction made based on models saved RDS when \code{save.on.disc = TRUE}, otherwise 
-#'   from \cpde{model$learner.model$base.models}
+#'   For \code{hill.climb} prediction is only applyed to base models which were selected. 
+#'   Prediction made based on models saved in RDS when \code{save.on.disc = TRUE}, otherwise 
+#'   from \cpde{model$learner.model$base.models}.
 #'
 #' @param model [\code{WrappedModel}]\cr Wrapped model, result of train.
 #' @param newdata [\code{data.frame}]\cr
 #'   New observations, for which the predictions using the specified base learners should be returned.
 #'   Default is \code{NULL} and extracts the base learner predictions that were made during the training.
-#' @details None.
-#'
 #' @export
 
 getStackedBaseLearnerPredictions = function(model, newdata = NULL){
