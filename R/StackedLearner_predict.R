@@ -1,8 +1,20 @@
 #' Predict StackedLearner
 #' 
-#' 
-
+#' Gets predictions from \code{getStackedBaseLearnerPredictions}. Then apply algo:
+#'  \describe{
+#'   \item{\code{average}}{Aggregate predictions using \code{\link{aggregatePredictions}}.}
+#'   \item{\code{hill.climb}}{Expand prediction according to frequency chosen in training, then apply aggregation as for 'average'.}
+#'   \item{\code{stack.cv}}{Convert list of \code{Prediction} to data.frame 
+#'   (for classification with \code{predict.type = "prob"} the first feature 
+#'    is removed to overcome mullticollinearity). Add original features if needed. 
+#'    Apply meta model from training.}
+#'  }
+#' @param .learner [\code{StackedLearner}]
+#' @param .model [\code{BaseEnsembleModel}]
+#' @param .newdata [\code{data.frame}]\cr Data to predict on
+#' @return Predictions are returned in matrix or vector. 
 #' @export
+
 predictLearner.StackedLearner = function(.learner, .model, .newdata) { # FIXME actually only .learner$method is needed
   # setup
   use.feat = .model$learner$use.feat
@@ -27,7 +39,6 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata) { # FIXME a
   } else if (method == "stack.cv") {
     pred.data = lapply(pred.list, function(x) getPredictionDataNonMulticoll(x))
     pred.data = as.data.frame(pred.data)
-    #names(pred.data) =  extractSubList(.model$learner$base.learners, "id") # FIXME WROGN (multiclass)
     if (use.feat) {
       feat = .newdata[, colnames(.newdata) %nin% td$target, drop = FALSE]
       pred.data = cbind(pred.data, feat)
@@ -35,15 +46,13 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata) { # FIXME a
     sm = .model$learner.model$super.model
     if (getMlrOption("show.info"))
       messagef("[Super Learner] Predict %s with %s features on %s observations", sm$learner$id, ncol(pred.data), nrow(pred.data))
-    #print(head(pred.data))
-    #messagef("There are %s NA in 'pred.data'", sum(is.na(pred.data)))
     final.pred = predict(sm, newdata = pred.data)
   } 
   # return 
   if (sm.pt == "prob") {
     return(as.matrix(getPredictionProbabilities(final.pred, cl = td$class.levels)))
   } else {
-    return(final.pred$data$response) #FIXME getPredictionResponse?
+    return(final.pred$data$response) 
   }
 }
 
@@ -52,8 +61,8 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata) { # FIXME a
 #' @description Returns the predictions for each base learner based on \code{newdata}. 
 #'   If \code{newdata} is not supported, training prediction will be returned. 
 #'   For \code{hill.climb} prediction is only applyed to base models which were selected. 
-#'   Prediction made based on models saved in RDS when \code{save.on.disc = TRUE}, otherwise 
-#'   from \cpde{model$learner.model$base.models}.
+#'   Predictions are made based on \code{model$learner.model$base.models}. If \code{save.on.disc = TRUE} 
+#'   only a name file is saved which direct to a RDS containing the model.
 #'
 #' @param model [\code{BaseEnsembleModel}]\cr BaseEnsembleModel, result of train.
 #' @param newdata [\code{data.frame}]\cr
@@ -78,7 +87,7 @@ getStackedBaseLearnerPredictions = function(model, newdata = NULL){
     }
     pred = vector("list", length(bms))
     # Prediction
-    # models from RDS file
+    # 1. models from RDS file
     if (model$learner$save.on.disc) {
       for (i in seq_along(bms)) { # FIXME: do in parallel
         m = readRDS(bms[[i]])
@@ -86,7 +95,7 @@ getStackedBaseLearnerPredictions = function(model, newdata = NULL){
       }
       bls.names = sapply(bms, function(x) convertModelNameToBlsName(x, stack.id))
     } else {
-    # models from object
+    # 2. models from object
       for (i in seq_along(bms)) {
         pred[[i]] = predict(bms[[i]], newdata = newdata)
       }

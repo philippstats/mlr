@@ -9,9 +9,10 @@ applyEnsembleSelection(pred.list = pred.list,
   bagprob = 1, bagtime = 1, maxiter = NULL, tolerance = 1e-08, metric = NULL))
 }
 \arguments{
-\item{pred.list}{A named (!) list of predictions}
+\item{pred.list}{A named list of predictions.}
 
-\item{bls.performance}{Named vector of performance results fron training (note that this should be results from resampled predictions to overcome overfitting issues.)}
+\item{bls.performance}{Named vector of performance results from training 
+(note that this should be results from resampled predictions to overcome overfitting issues).}
 
 \item{parset}{list of parameters. See /code{/{link{makeStackedLearner}}}.}
 }
