@@ -8,13 +8,13 @@
 createTask = function(type, data, target, id = deparse(substitute(data))) {
   if (type == "classif") {
     task = makeClassifTask(id = id, data = data, target = target)
-  } else {
+  } else if (type == "regr") {
     task = makeRegrTask(id = id, data = data, target = target)
   }
   task
 }
 
-#' Get precise type of the task, which is "classif", "multiclassif" or "regr".
+#' Get precise type of the task, i.e. distinguish between "classif" (binary target), "multiclassif" and all other types.
 #' 
 #' @template arg_task_or_desc
 #' @export
@@ -27,13 +27,13 @@ getPreciseTaskType = function(x) {
   type
 }
 
-#' Create predictions for testing set.
+#' Create predictions for testing set (with base model or saved one in RDS).
 #' 
-#' @param i number of fold
-#' @param bls base.learner to use
-#' @param test.idx idx for subsetting
-#' @param task task
-#' @param save.on.disc wether model are present in \code{bls} or must be loaded using readRDS
+#' @param i Current fold number.
+#' @param bls base.learner to use.
+#' @param test.idx idx for subsetting.
+#' @param task task.
+#' @param save.on.disc wether model are present in \code{bls} or must be loaded using readRDS.
 
 createTestPreds = function(i, bls, test.idx, task, save.on.disc) {
     bls.len = length(bls)
@@ -88,7 +88,7 @@ print.RecombinedResampleResult = function(x, ...) {
   Map(function(name, x, aggr) {
     catf("%s.aggr: %.2f", name, aggr)
     catf("%s.mean: %.2f", name, mean(x, na.rm = TRUE))
-    catf("%s.sd: %.2f", name, sd(x, na.rm = TRUE))
+    catf("%s.sd: %.2f", name, sd(x, na.rm = TRUE)) 
   }, name = colnames(m), x = m, aggr = x$aggr)
   catf("Runtime: %g", x$runtime)
   invisible(NULL)
