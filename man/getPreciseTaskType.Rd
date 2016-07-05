@@ -2,7 +2,7 @@
 % Please edit documentation in R/StackedLearner_re2.R
 \name{getPreciseTaskType}
 \alias{getPreciseTaskType}
-\title{Get precise type of the task, which is "classif", "multiclassif" or "regr".}
+\title{Get precise type of the task, i.e. distinguish between "classif" (binary target), "multiclassif" and all other types.}
 \usage{
 getPreciseTaskType(x)
 }
@@ -11,6 +11,6 @@ getPreciseTaskType(x)
 Task or its description object.}
 }
 \description{
-Get precise type of the task, which is "classif", "multiclassif" or "regr".
+Get precise type of the task, i.e. distinguish between "classif" (binary target), "multiclassif" and all other types.
 }
 

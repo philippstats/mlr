@@ -2,22 +2,22 @@
 % Please edit documentation in R/StackedLearner_re2.R
 \name{createTestPreds}
 \alias{createTestPreds}
-\title{Create predictions for testing set.}
+\title{Create predictions for testing set (with base model or saved one in RDS).}
 \usage{
 createTestPreds(i, bls, test.idx, task, save.on.disc)
 }
 \arguments{
-\item{i}{number of fold}
+\item{i}{Current fold number.}
 
-\item{bls}{base.learner to use}
+\item{bls}{base.learner to use.}
 
-\item{test.idx}{idx for subsetting}
+\item{test.idx}{idx for subsetting.}
 
-\item{task}{task}
+\item{task}{task.}
 
-\item{save.on.disc}{wether model are present in \code{bls} or must be loaded using readRDS}
+\item{save.on.disc}{wether model are present in \code{bls} or must be loaded using readRDS.}
 }
 \description{
-Create predictions for testing set.
+Create predictions for testing set (with base model or saved one in RDS).
 }
 
