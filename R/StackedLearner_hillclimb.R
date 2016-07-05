@@ -29,7 +29,7 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
   id = learner$id
   save.on.disc = learner$save.on.disc
   td = getTaskDescription(task)
-  type = getPreciseTaskType(task) # "regr", "classif", "multiclassif"
+  type = getTaskType(task) 
   bls = learner$base.learners
   bls.names = names(bls)
   # check
