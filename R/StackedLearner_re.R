@@ -13,16 +13,16 @@
 #' \describe{
 #' \item{1.}{Use saved base models (from \code{obj}) on test data to predict level 1 test data.}
 #' \item{2.}{Extract level 1 train data (from \code{obj}).}
-#' \item{3.}{Fit new super learner or apply new ensemble selection setting using level 1 train data.}
+#' \item{3.}{Fit new super learner or apply new ensemble selection setting using level 1 train data from (2).}
 #' \item{4.}{Apply model from (3) on level 1 test data from (1) to obtain final prediction.}
 #' }
-#' For
+#' Following parameters need to be set fir the single methods. For
 #' \describe{
 #' \item{method  = "stack.cv"}{\code{super.learner} and \code{use.feat} need to be set.}
 #' \item{method = "hill.climb"}{\code{parset} need to be set.} 
 #' }
 #' \describe{
-#' \item{method = "average"}{is not supported (does not use inner cross valiaation like "stack.cv" and "hill.climb").} 
+#' \item{method = "average"}{is currently not implemented.} 
 #' }
 #' @param id [\code{character(1)}]\cr Unique ID for object.
 #' @param obj [\code{ResampleResult}]\cr \code{ResampleResult} from \code{StackedLearner}.
@@ -34,20 +34,21 @@
 #' @export
 #' @return Object of classes "RecombinedResampleResult" and "ResampleResult". 
 #'   "RecombinedResampleResult" differ from classical "ResampleResult" in that way, that it 
-#'   contains parameters from StackedLearner (i.e. super.learner use.feat, parset), 
+#'   contains parameters from StackedLearner (i.e. super.learner, use.feat, parset), 
 #'   but has no error handling (err.msgs = NULL) and no extract functionality (extract = NULL). 
-#'   The returned values 'pred' and 'models' differ as well.
+#'   The returned values od 'pred' as well as 'models' differ as well.
 #' @examples 
 #' tsk = pid.task
-#' # Base learner need unique names (id)
-#' bls = list(makeLearner("classif.kknn", id = "knn1"), 
-#'   makeLearner("classif.randomForest", id = "rf1"),
+#' # Base learners need unique names (id)
+#' bls = list(makeLearner("classif.kknn"), 
+#'   makeLearner("classif.randomForest"),
 #'   makeLearner("classif.rpart", id = "rp1", minsplit = 5),
 #'   makeLearner("classif.rpart", id = "rp2", minsplit = 10),
 #'   makeLearner("classif.rpart", id = "rp3", minsplit = 15),
 #'   makeLearner("classif.rpart", id = "rp4", minsplit = 20),
 #'   makeLearner("classif.rpart", id = "rp5", minsplit = 25)
 #' )
+#' # For classification predict.type = "prob" might lead to better results.
 #' bls = lapply(bls, function(x) setPredictType(x, predict.type = "prob"))
 #' ste = makeStackedLearner(id = "stack", bls, resampling = cv3, 
 #'   predict.type = "prob", method = "hill.climb", parset = list(init = 1, 
@@ -68,9 +69,9 @@
 #' res2 = resample(ste2, tsk, cv2, models = TRUE) 
 #' sapply(list(res2, re2), function(x) x$runtime)
 
-
-# Singular indicates objects which contain only one information (e.g. one model from base models list from one fold).
-# Plural indicates a list of objects (e.g. list of learners, models, data sets).
+# Nomenclature:
+# 'Singular' indicates objects which contain only one object (e.g. one model from base models list from one fold).
+# 'Plural' indicates a list of objects (e.g. list of learners, models, data sets).
 # List ends with '_f' if information from all f folds are saved in that object (may be a list of lists).
  
 resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, super.learner = NULL, use.feat = NULL, parset = NULL) {
@@ -118,7 +119,6 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
   bls.names = names(obj$models[[1]]$learner.model$base.models)
   bm.pt = unique(unlist(lapply(seq_len(bls.length), function(x) obj$models[[1]]$learner$base.learners[[x]]$predict.type)))
   folds = length(obj$models)
-  #bm.pt = unique(unlist(lapply(seq_len(bls.length), function(x) obj$models[[1]]$learner.model$base.models[[x]]$learner$predict.type)))
   if (length(bm.pt) > 1) stopf("All Base Learner must be of the same predict.type.")
   task.size = getTaskSize(task)
   save.on.disc = obj$models[[1]]$learner$save.on.disc
@@ -139,8 +139,9 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
   ### 
   ### 
   if (method == "stack.cv") { 
-    ### get TEST level 1 preds, i.e. apply bls models from training on testing data
-    # saved as "test.level1.preds"
+    ### 1.
+    ### Get level 1 TEST data, i.e. apply bls models from training on testing data
+    # saved in "test.level1.task_f"
     for (f in seq_len(folds)) {
       test.idx = test.idxs[[f]]
       pred.list = createTestPreds(f, base.models_f[[f]], test.idx = test.idx, task, save.on.disc)
@@ -156,46 +157,43 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
       test.level1.task_f[[f]]  = createTask(type, data = pred.data, target = tn)
       rm(pred.data.list, pred.data)
     }
-    ### apply super.learner on TRAIN level 1 tasks to obtain models
-    # data saved as "train.level1.datas" (one list entry per fold)
-    # task saved as "train.level1.tasks" (-"-)
-
-    # If pred.train are a data.frames (i.e. method=stack.cv) then train.level1.datas
-    # are already a list of data.frame. 
-    # If pred.train are predictions (i.e. method=hill.climb) then they must be 
-    # converted using getResponse.
+    ### 2.
+    ### Get level 1 TRAIN data 
+    # preds saved in "train.level1.preds_f" (one list entry per fold)
+    # task saved as "train.level1.task_f" (one task per fold)
     train.level1.preds_f = lapply(obj$models, function(x) x$learner.model$pred.train)
-    #if (org.method == "hill.climb") { # pred.train are predictions, no data.frame
     train.level1.task_f = vector("list", length = folds)
     for (f in seq_len(folds)) {
       train.idx = train.idxs[[f]]
       pred.data.list = lapply(seq_len(bls.length), function(x) getPredictionDataNonMulticoll(train.level1.preds_f[[f]][[x]])) # TODO naming
-      names(pred.data.list) = bls.names #TODO/FIME save as above: write a fct
+      names(pred.data.list) = bls.names 
       if (use.feat) {
-      feat = getTaskData(task, subset = train.idx, target.extra = TRUE)$data
-      pred.data.list[["feat"]] = feat
+        feat = getTaskData(task, subset = train.idx, target.extra = TRUE)$data
+        pred.data.list[["feat"]] = feat
       }
       pred.data.list[[tn]] = getTaskTargets(task)[train.idx]
-      pred.data = as.data.frame(pred.data.list) # TODO: naming
+      pred.data = as.data.frame(pred.data.list) 
       train.level1.task_f[[f]] = createTask(type, pred.data, target = tn, id = paste0("fold", f))
     }
-    # fit super.learner on every fold
-    #-train.supermodel = benchmark(super.learner, tasks = train.level1.tasks, resampling = makeResampleDesc("Holdout", predict = "train", split = 1), measures = measures)
-    #+ here tuneParam could be applied
+    ### 3
+    ### Fit super.learner on every fold
+    #+++ here tuneParam could be applied +++
     train.supermodel_f = lapply(seq_len(folds), function(f) train(super.learner, task = train.level1.task_f[[f]]))
     train.preds_f = lapply(seq_len(folds), function(f) predict(train.supermodel_f[[f]], task = train.level1.task_f[[f]]))
-    ### apply train.supermodel from line above on TEST level 1 preds 
+    ### 4.
+    ### Apply train.supermodel from line above on  level 1 TEST preds from (1).
     test.preds_f = lapply(seq_len(folds), function(f) predict(train.supermodel_f[[f]], test.level1.task_f[[f]]))
     res.model_f = train.supermodel_f
     ### 
     ### 
-    ### end stack.cv / start hill.climb ###
+    ### hill.climb ###
     ###
     ###
   } else if (method == "hill.climb") { 
     # use settings from new parset
     parset = createNewParset(org.parset = obj$models[[1]]$learner$parset, new.parset = parset)
-    ### get TRAIN level 1 preds and perfs
+    ### 1.
+    ### get level 1 TRAIN preds and perfs
     # saved as "train.level1.preds"
     # saved as "train.level1.perfs"
     train.level1.preds_f = lapply(seq_len(folds), function(x) obj$models[[x]]$learner.model$pred.train)
@@ -204,18 +202,22 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
     train.preds_f = test.preds_f = vector("list", length = folds)
     res.model_f = vector("list", length = folds)
     for (f in seq_len(folds)) {
-      ### get TEST level 1 preds, i.e. apply bls models from training on testing data
+      ### 2.
+      ### get level 1 TEST preds, i.e. apply bls models from training on testing data
       # saved as "test.level1.preds"
       test.level1.preds = createTestPreds(f, base.models_f[[f]], test.idx = test.idxs[[f]], task, save.on.disc)
-      ### train with new parameters
+      ### 3.
+      ### Run Ensemble Selection on level 1 TRAIN preds (1) with new parameters.
       res.model_f[[f]] = applyEnsembleSelection(pred.list = train.level1.preds_f[[f]],
         bls.performance = train.level1.perfs_f[[f]], parset = parset)
       freq = res.model_f[[f]]$freq
-      # train prediction
+      # Create train prediction (needes for train measure)
       current.pred.list = train.level1.preds_f[[f]] # names(current.pred.list) = bls.names
       current.pred.list = expandPredList(current.pred.list, freq = freq)
       train.preds_f[[f]] = aggregatePredictions(pred.list = current.pred.list, pL = FALSE)
-      # test prediction
+      
+      ### 4.
+      ### Apply Model (i.e. freq) on level 1 TEST preds from (3)
       current.pred.list = expandPredList(test.level1.preds, freq = freq)
       test.preds_f[[f]] = aggregatePredictions(pred.list = current.pred.list, pL = FALSE)
     }
@@ -267,10 +269,9 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
 #   (redo resampling with another base learners setting and use the alreday fitted 
 #   models -- so you just have to run a (big) number of base leaernes once and 
 #   then make use of base learners you want to use).
-# - allow tuneParam so that superlearner can be tuned (only menaingful for outer
-#   holdout!?).
-# - run in parallel (but maybe a outer parallelization is more usefull)
-# 
+# - allow tuneParam so that superlearner can be tuned. Should be easy.
+# - run in parallel (but maybe a outer parallelization is more usefull).
+# - add average method
 # 
 # 
 # 

@@ -26,7 +26,7 @@ test_that("resampleStackedLearnerAgain", {
       super.learner = makeLearner("classif.rpart", predict.type = "prob"))
   
   for (tsk in tasks_classif) {
-    context("Starting with ES")
+    context(paste("ES on", tsk$task.desc$id))
     rdesc = cv2
     resES = resample(ste, tsk, rdesc, models = TRUE) 
     ee1 = resampleStackedLearnerAgain(obj = resES, task = tsk, measures = mmce, parset = list(init = 2, bagprob = .7, bagtime = 10, replace = TRUE, metric = mmce))
@@ -59,7 +59,7 @@ test_that("resampleStackedLearnerAgain", {
     # FIXME: more tests
     
     
-    context("Starting with SL")
+    context(paste("SL on", tsk$task.desc$id))
     resSL = resample(stc, tsk, cv2, models = TRUE) 
     ss1 = resampleStackedLearnerAgain(obj = resSL, task = tsk, measures = mmce, super.learner = makeLearner("classif.rpart", predict.type = "prob"))
     ss2 = resampleStackedLearnerAgain(obj = resSL, task = tsk, measures = list(mmce), super.learner = makeLearner("classif.rpart"))

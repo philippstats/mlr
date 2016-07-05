@@ -28,9 +28,9 @@ Default is the first measure used in the benchmark experiment.}
 \value{
 Object of classes "RecombinedResampleResult" and "ResampleResult". 
   "RecombinedResampleResult" differ from classical "ResampleResult" in that way, that it 
-  contains parameters from StackedLearner (i.e. super.learner use.feat, parset), 
+  contains parameters from StackedLearner (i.e. super.learner, use.feat, parset), 
   but has no error handling (err.msgs = NULL) and no extract functionality (extract = NULL). 
-  The returned values 'pred' and 'models' differ as well.
+  The returned values od 'pred' as well as 'models' differ as well.
 }
 \description{
 Instead of rerun \code{resample} with a new setting just use 
@@ -46,29 +46,30 @@ This function does four things internally (in that order) to obtain the new pred
 \describe{
 \item{1.}{Use saved base models (from \code{obj}) on test data to predict level 1 test data.}
 \item{2.}{Extract level 1 train data (from \code{obj}).}
-\item{3.}{Fit new super learner or apply new ensemble selection setting using level 1 train data.}
+\item{3.}{Fit new super learner or apply new ensemble selection setting using level 1 train data from (2).}
 \item{4.}{Apply model from (3) on level 1 test data from (1) to obtain final prediction.}
 }
-For
+Following parameters need to be set fir the single methods. For
 \describe{
 \item{method  = "stack.cv"}{\code{super.learner} and \code{use.feat} need to be set.}
 \item{method = "hill.climb"}{\code{parset} need to be set.} 
 }
 \describe{
-\item{method = "average"}{is not supported (does not use inner cross valiaation like "stack.cv" and "hill.climb").} 
+\item{method = "average"}{is currently not implemented.} 
 }
 }
 \examples{
 tsk = pid.task
-# Base learner need unique names (id)
-bls = list(makeLearner("classif.kknn", id = "knn1"), 
-  makeLearner("classif.randomForest", id = "rf1"),
+# Base learners need unique names (id)
+bls = list(makeLearner("classif.kknn"), 
+  makeLearner("classif.randomForest"),
   makeLearner("classif.rpart", id = "rp1", minsplit = 5),
   makeLearner("classif.rpart", id = "rp2", minsplit = 10),
   makeLearner("classif.rpart", id = "rp3", minsplit = 15),
   makeLearner("classif.rpart", id = "rp4", minsplit = 20),
   makeLearner("classif.rpart", id = "rp5", minsplit = 25)
 )
+# For classification predict.type = "prob" might lead to better results.
 bls = lapply(bls, function(x) setPredictType(x, predict.type = "prob"))
 ste = makeStackedLearner(id = "stack", bls, resampling = cv3, 
   predict.type = "prob", method = "hill.climb", parset = list(init = 1, 
