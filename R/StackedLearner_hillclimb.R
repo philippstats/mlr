@@ -87,8 +87,9 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
 
 #' Ensemble selection algorithm
 #' 
-#' @param pred.list A named (!) list of predictions
-#' @param bls.performance Named vector of performance results fron training (note that this should be results from resampled predictions to overcome overfitting issues.)
+#' @param pred.list A named list of predictions.
+#' @param bls.performance Named vector of performance results from training 
+#'   (note that this should be results from resampled predictions to overcome overfitting issues).
 #' @param parset list of parameters. See /code{/{link{makeStackedLearner}}}.
 #' @references Caruana, Rich, et al. "Ensemble selection from libraries of models." 
 #'   Proceedings of the twenty-first international conference on Machine learning. 
