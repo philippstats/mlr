@@ -187,12 +187,15 @@ getStackedBaseLearnerPredictions = function(model, newdata = NULL){
     # get base learner and predict type
     method = model$learner.model$method
     if (method == "hill.climb") {
+      # only apply prediction to models which are relevant for hill.climb
       used.bls = names(which(model$learner.model$freq > 0))
       bms = model$learner.model$base.models[used.bls]
     } else {
       bms = model$learner.model$base.models
     }
     pred = vector("list", length(bms))
+    # Prediction
+    # models from RDS file
     if (model$learner$save.on.disc) {
       for (i in seq_along(bms)) { # FIXME: do in parallel
         m = readRDS(bms[[i]])
@@ -200,6 +203,7 @@ getStackedBaseLearnerPredictions = function(model, newdata = NULL){
       }
       bls.names = sapply(bms, function(x) convertModelNameToBlsName(x, stack.id))
     } else {
+    # models from object
       for (i in seq_along(bms)) {
         pred[[i]] = predict(bms[[i]], newdata = newdata)
       }
