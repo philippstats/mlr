@@ -2,30 +2,20 @@
 % Please edit documentation in R/StackedLearner_re2.R
 \name{createTask}
 \alias{createTask}
-\title{Retrain super learner on new test task}
+\title{Create a classif or regr Task}
 \usage{
 createTask(type, data, target, id = deparse(substitute(data)))
 }
 \arguments{
-\item{type}{[\code{character(1)}]\cr Use "classif" for Classification and "regr" for regression.}
+\item{type}{[\code{character(1)}]\cr Use "classif" for classification and "regr" for regression.}
 
 \item{data}{[\code{data.frame}]\cr  Data to use.}
 
 \item{target}{[\code{character(1)}]\cr Target to use.}
 
-\item{obj}{[\code{ResampleResult}]\cr Object using \code{StackedLearner} as Learner.}
-
-\item{super.learner}{[\code{Learner}]\cr New \code{super.learner} to apply.
-
-
-Extract level 1 data from stacking resample and create a task}
-
-\item{obj}{[\code{ResampleResult}]\cr Object using \code{StackedLearner} as Learner.}
-
-\item{as.task}{[\code{logical(1)}]\cr Specify if task or data.frame should be returned. 
-Create a Classif or Regr Task}
+\item{id}{[\code{character(1)}] Task id.}
 }
 \description{
-Retrain super learner on new test task
+Create a classif or regr Task
 }
 

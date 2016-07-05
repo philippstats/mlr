@@ -2,7 +2,7 @@
 % Please edit documentation in R/StackedLearner_re2.R
 \name{createTestPreds}
 \alias{createTestPreds}
-\title{Create Predictions for Testing Set}
+\title{Create predictions for testing set.}
 \usage{
 createTestPreds(i, bls, test.idx, task, save.on.disc)
 }
@@ -15,9 +15,9 @@ createTestPreds(i, bls, test.idx, task, save.on.disc)
 
 \item{task}{task}
 
-\item{save.on.disc}{wether model are presend in bls or must be loaded using readRDS}
+\item{save.on.disc}{wether model are present in \code{bls} or must be loaded using readRDS}
 }
 \description{
-Create Predictions for Testing Set
+Create predictions for testing set.
 }
 

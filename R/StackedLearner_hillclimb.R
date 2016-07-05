@@ -72,7 +72,6 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
   #}
 
   ensel = applyEnsembleSelection(pred.list = pred.list,
-    bls.length = length(base.models), bls.names = bls.names, 
     bls.performance = bls.performance, parset = list(replace = replace, 
     init = init, bagprob = bagprob, bagtime = bagtime, maxiter = maxiter, 
     metric = metric, tolerance = tolerance))
@@ -88,21 +87,21 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
 
 #' Ensemble selection algorithm
 #' 
-#' @param pred.list pred.list.
-#' @param bls.length bls.length (TODO remove me).
-#' @param bls.names bls.names.
-#' @param bls.performance bls.performance as names list.
+#' @param pred.list A named (!) list of predictions
+#' @param bls.performance Named vector of performance results fron training (note that this should be results from resampled predictions to overcome overfitting issues.)
 #' @param parset list of parameters. See /code{/{link{makeStackedLearner}}}.
 #' @references Caruana, Rich, et al. "Ensemble selection from libraries of models." 
 #'   Proceedings of the twenty-first international conference on Machine learning. 
 #'   ACM, 2004. \url{http://www.cs.cornell.edu/~caruana/ctp/ct.papers/caruana.icml04.icdm06long.pdf}
 #' @export
 
-applyEnsembleSelection = function(pred.list = pred.list, bls.length = bls.length,
-  bls.names = bls.names, bls.performance = bls.performance, parset = list(replace = TRUE, 
+applyEnsembleSelection = function(pred.list = pred.list, bls.performance = bls.performance, parset = list(replace = TRUE, 
   init = 1, bagprob = 1, bagtime = 1, maxiter = NULL, tolerance = 1e-8, metric = NULL)) {
   # check
   assertClass(parset, "list")
+  bls.names = names(pred.list)
+  bls.length = length(pred.list)
+  
   # FIXME: Need defaults. should be nicer
   if (is.null(parset$replace)) parset$replace = TRUE
   if (is.null(parset$init)) parset$init = 1
@@ -150,7 +149,7 @@ applyEnsembleSelection = function(pred.list = pred.list, bls.length = bls.length
     freq[inds.init] = freq[inds.init] + 1  
     
     current.pred.list = pred.list[inds.init]
-    current.pred = aggregatePredictions(current.pred.list)
+    current.pred = aggregatePredictions(current.pred.list, pL = FALSE)
     bench.score = metric$fun(pred = current.pred)
     
     inds.selected = inds.init
@@ -160,7 +159,7 @@ applyEnsembleSelection = function(pred.list = pred.list, bls.length = bls.length
       temp.score = rep(ifelse(metric$minimize, Inf, -Inf), m)
       for (i in bagmodel) {
         temp.pred.list = append(current.pred.list, pred.list[i])
-        aggr.pred = aggregatePredictions(temp.pred.list)
+        aggr.pred = aggregatePredictions(temp.pred.list, pL = FALSE)
         temp.score[i] = metric$fun(pred = aggr.pred)
       }
       # order scores
@@ -182,7 +181,7 @@ applyEnsembleSelection = function(pred.list = pred.list, bls.length = bls.length
         break() # break inner loop 
       } else {
         current.pred.list = append(current.pred.list, pred.list[best.ind])
-        current.pred = aggregatePredictions(current.pred.list)
+        current.pred = aggregatePredictions(current.pred.list, pL = FALSE)
         freq[best.ind] = freq[best.ind] + 1
         inds.selected = c(inds.selected, best.ind)
         bench.score = new.score

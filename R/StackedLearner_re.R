@@ -209,16 +209,15 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
       test.level1.preds = createTestPreds(f, base.models_f[[f]], test.idx = test.idxs[[f]], task, save.on.disc)
       ### train with new parameters
       res.model_f[[f]] = applyEnsembleSelection(pred.list = train.level1.preds_f[[f]],
-        bls.length = bls.length, bls.names = bls.names, 
         bls.performance = train.level1.perfs_f[[f]], parset = parset)
       freq = res.model_f[[f]]$freq
       # train prediction
       current.pred.list = train.level1.preds_f[[f]] # names(current.pred.list) = bls.names
       current.pred.list = expandPredList(current.pred.list, freq = freq)
-      train.preds_f[[f]] = aggregatePredictions(pred.list = current.pred.list)
+      train.preds_f[[f]] = aggregatePredictions(pred.list = current.pred.list, pL = FALSE)
       # test prediction
       current.pred.list = expandPredList(test.level1.preds, freq = freq)
-      test.preds_f[[f]] = aggregatePredictions(pred.list = current.pred.list)
+      test.preds_f[[f]] = aggregatePredictions(pred.list = current.pred.list, pL = FALSE)
     }
   }
   ###

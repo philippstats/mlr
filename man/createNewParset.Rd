@@ -2,7 +2,7 @@
 % Please edit documentation in R/StackedLearner_re2.R
 \name{createNewParset}
 \alias{createNewParset}
-\title{Create new parset}
+\title{Create new parset.}
 \usage{
 createNewParset(org.parset, new.parset)
 }
@@ -12,6 +12,6 @@ createNewParset(org.parset, new.parset)
 \item{new.parset}{parameters which should be updated}
 }
 \description{
-Create new parset
+Create new parset.
 }
 

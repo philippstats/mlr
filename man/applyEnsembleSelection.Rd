@@ -2,27 +2,25 @@
 % Please edit documentation in R/StackedLearner_hillclimb.R
 \name{applyEnsembleSelection}
 \alias{applyEnsembleSelection}
-\title{Ensemble selection algo}
+\title{Ensemble selection algorithm}
 \usage{
-applyEnsembleSelection(pred.list = pred.list, bls.length = bls.length,
-  bls.names = bls.names, bls.performance = bls.performance,
-  parset = list(replace = TRUE, init = 1, bagprob = 1, bagtime = 1, maxiter =
-  NULL, tolerance = 1e-08, metric = NULL))
+applyEnsembleSelection(pred.list = pred.list,
+  bls.performance = bls.performance, parset = list(replace = TRUE, init = 1,
+  bagprob = 1, bagtime = 1, maxiter = NULL, tolerance = 1e-08, metric = NULL))
 }
 \arguments{
-\item{pred.list}{pred.list}
+\item{pred.list}{A named (!) list of predictions}
 
-\item{bls.length}{bls.length}
+\item{bls.performance}{Named vector of performance results fron training (note that this should be results from resampled predictions to overcome overfitting issues.)}
 
-\item{bls.names}{bls.names}
-
-\item{bls.performance}{bls.performance}
-
-\item{parset}{parset}
-
-\item{parset}{list of parset}
+\item{parset}{list of parameters. See /code{/{link{makeStackedLearner}}}.}
 }
 \description{
-Ensemble selection algo
+Ensemble selection algorithm
+}
+\references{
+Caruana, Rich, et al. "Ensemble selection from libraries of models." 
+  Proceedings of the twenty-first international conference on Machine learning. 
+  ACM, 2004. \url{http://www.cs.cornell.edu/~caruana/ctp/ct.papers/caruana.icml04.icdm06long.pdf}
 }
 

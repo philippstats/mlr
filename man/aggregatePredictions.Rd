@@ -2,14 +2,14 @@
 % Please edit documentation in R/StackedLearner_aggregatePredictions.R
 \name{aggregatePredictions}
 \alias{aggregatePredictions}
-\title{Aggregate Predictions}
+\title{Aggregate predictions}
 \usage{
-aggregatePredictions(pred.list, spt = NULL)
+aggregatePredictions(pred.list, sm.pt = NULL, pL = TRUE)
 }
 \arguments{
 \item{pred.list}{[list of \code{Predictions}]\cr}
 
-\item{spt}{Final predict type, "prob" or "response"}
+\item{sm.pt}{Final predict type, "prob" or "response"}
 }
 \description{
 Aggregate predicitons results by averaging (for \code{regr}, and  \code{classif} with prob) or mode ( \code{classif} with response). 

@@ -25,6 +25,13 @@ The task.}
 Performance measure.
 Default is the first measure used in the benchmark experiment.}
 }
+\value{
+Object of classes "RecombinedResampleResult" and "ResampleResult". 
+  "RecombinedResampleResult" differ from classical "ResampleResult" in that way, that it 
+  contains parameters from StackedLearner (i.e. super.learner use.feat, parset), 
+  but has no error handling (err.msgs = NULL) and no extract functionality (extract = NULL). 
+  The returned values 'pred' and 'models' differ as well.
+}
 \description{
 Instead of rerun \code{resample} with a new setting just use 
 \code{resampleStackedLearnerAgain}. \code{resampleStackedLearnerAgain} reuses 
@@ -53,26 +60,33 @@ For
 }
 \examples{
 tsk = pid.task
-bls = list(makeLearner("classif.kknn", id = "k1"), 
-  makeLearner("classif.randomForest", id = "f1"),
-  makeLearner("classif.rpart", id = "r1", minsplit = 5),
-  makeLearner("classif.rpart", id = "r2", minsplit = 10),
-  makeLearner("classif.rpart", id = "r3", minsplit = 15),
-  makeLearner("classif.rpart", id = "r4", minsplit = 20),
-  makeLearner("classif.rpart", id = "r5", minsplit = 25)
+# Base learner need unique names (id)
+bls = list(makeLearner("classif.kknn", id = "knn1"), 
+  makeLearner("classif.randomForest", id = "rf1"),
+  makeLearner("classif.rpart", id = "rp1", minsplit = 5),
+  makeLearner("classif.rpart", id = "rp2", minsplit = 10),
+  makeLearner("classif.rpart", id = "rp3", minsplit = 15),
+  makeLearner("classif.rpart", id = "rp4", minsplit = 20),
+  makeLearner("classif.rpart", id = "rp5", minsplit = 25)
 )
 bls = lapply(bls, function(x) setPredictType(x, predict.type = "prob"))
 ste = makeStackedLearner(id = "stack", bls, resampling = cv3, 
   predict.type = "prob", method = "hill.climb", parset = list(init = 1, 
-  bagprob = 0.5, bagtime = 3, metric = mmce))
-# Note that 'models = TRUE' must be set.
-resr= resample(ste, tsk, cv2, models = TRUE) 
-re2 = resampleStackedLearnerAgain(obj = res, task = tsk, parset = list(init = 2))
+  bagprob = 0.5, bagtime = 3, metric = mmce), save.on.disc = FALSE)
+# To use resampleStackedLearnerAgain
+# - cross validation in outer resampling can be used only if 'save.on.disc = FALSE' in resampleStackedLearnerAgain,
+# - in resample 'models = TRUE' must be set.
+res = resample(ste, tsk, cv2, models = TRUE) 
+re2 = resampleStackedLearnerAgain(obj = res, task = tsk, parset = list(init = 2, bagtime = 15))
 re3 = resampleStackedLearnerAgain(obj = res, task = tsk, measures = list(mmce, auc), parset = list(bagprob = .2, bagprob = 10, metric = auc))
 re3 = resampleStackedLearnerAgain(obj = res, task = tsk, measures = mmce, parset = list(replace = FALSE, init = 2, bagprob = .2))
-re5 = resampleStackedLearnerAgain(obj = res, task = tsk, measures = mmce, super.learner = bls[[1]], use.feat = TRUE)
+re4 = resampleStackedLearnerAgain(obj = res, task = tsk, measures = mmce, super.learner = bls[[2]], use.feat = TRUE)
+sapply(list(res, re2, re3, re4), function(x) x$aggr)
 
-sapply(list(resres, re2, re3, re4, re5), function(x) x$runtime)
-sapply(list(resres, re2, re3, re4, re5), function(x) x$aggr)
+# Compare running time of idential settings
+ste2 = makeStackedLearner(id = "stack", bls, resampling = cv3, 
+  predict.type = "prob", method = "hill.climb", parset = list(init = 2, bagtime = 15))
+res2 = resample(ste2, tsk, cv2, models = TRUE) 
+sapply(list(res2, re2), function(x) x$runtime)
 }
 
