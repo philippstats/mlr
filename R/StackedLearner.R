@@ -164,6 +164,19 @@ makeStackedLearner = function(id = "stack", method = "stack.nocv", base.learners
   return(lrn)
 }
 
+
+#' @export
+trainLearner.StackedLearner = function(.learner, .task, .subset, ...) {
+  .task = subsetTask(.task, subset = .subset)
+  switch(.learner$method,
+    average = averageBaseLearners(.learner, .task),
+    stack.cv = stackCV(.learner, .task),
+    # hill.climb = hillclimbBaseLearners(.learner, .task, ...)
+    hill.climb = do.call(hillclimbBaseLearners, c(list(.learner, .task), .learner$parset))
+  )
+}
+
+
 # old TODOs:
 # - document + test + export
 # - benchmark stuff on openml

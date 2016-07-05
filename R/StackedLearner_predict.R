@@ -102,14 +102,3 @@ getStackedBaseLearnerPredictions = function(model, newdata = NULL){
   pred
 }
 
-#' @export
-trainLearner.StackedLearner = function(.learner, .task, .subset, ...) {
-  .task = subsetTask(.task, subset = .subset)
-  switch(.learner$method,
-    average = averageBaseLearners(.learner, .task),
-    stack.cv = stackCV(.learner, .task),
-    # hill.climb = hillclimbBaseLearners(.learner, .task, ...)
-    hill.climb = do.call(hillclimbBaseLearners, c(list(.learner, .task), .learner$parset))
-  )
-}
-
