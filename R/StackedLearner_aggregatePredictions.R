@@ -7,7 +7,7 @@
 #' @param sm.pt Final predict type, "prob" or "response"
 #' @export
 
-aggregatePredictions = function(pred.list, sm.pt = NULL) {
+aggregatePredictions = function(pred.list, sm.pt = NULL, pL = TRUE) {
   # return pred if list only contains one pred
   if (length(pred.list) == 1) {
     #messagef("'pred.list' has only one prediction and returns that one unlisted. Argument 'sm.pt' will not be applied.")
@@ -22,19 +22,17 @@ aggregatePredictions = function(pred.list, sm.pt = NULL) {
   pts.unequal = unlist(lapply(2:length(x), function(i) !all.equal(x[[1]], x[[i]])))
   if (any(pts.unequal)) stopf("Predict type in prediction '1' and '%s' differ. This is not possible!",  which(pts.unequal)[1])
   
-  x = unlist(lapply(pred.list, function(x) checkIfNullOrAnyNA(x$data$response)))
+  #x = unlist(lapply(pred.list, function(x) checkIfNullOrAnyNA(x$data$response)))
   #print(which(x))
   #print(pred.list)
-  if (any(x)) messagef("Prediction '%s' is broken and will be removed.", which(x))
-  pred.list = pred.list[!x]
+  #if (any(x)) messagef("Prediction '%s' is broken and will be removed.", which(x))
+  #pred.list = pred.list[!x]
   
   # Body
   pred1 = pred.list[[1]]
   type = getTaskType(pred1)
   td = getTaskDescription(pred1)
   rn = row.names(pred1$data)
-  id = pred1$data$id
-  tr = pred1$data$truth
   pt = pred1$predict.type
   if (is.null(sm.pt)) sm.pt = pt
   
@@ -72,7 +70,16 @@ aggregatePredictions = function(pred.list, sm.pt = NULL) {
     preds = lapply(pred.list, getPredictionResponse)
     y = Reduce("+", preds)/pred.length
   }
-  return(makePrediction(task.desc = td, rn, id = id, truth = tr, predict.type = sm.pt, predict.threshold = NULL, y, time = ti))
+  if (pL) {
+    nNA = rep(NA, NROW(y))
+      return(makePrediction(task.desc = td, rn, id = nNA, truth = nNA, predict.type = sm.pt, predict.threshold = NULL, y, time = ti))
+  } else {
+    id = pred1$data$id
+    tr = pred1$data$truth
+    return(makePrediction(task.desc = td, rn, id = id, truth = tr, predict.type = sm.pt, predict.threshold = NULL, y, time = ti))
+  }
+
+
 }
 
 # FIXME: clean up naming
