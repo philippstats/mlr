@@ -164,76 +164,7 @@ makeStackedLearner = function(id = "stack", method = "stack.nocv", base.learners
   return(lrn)
 }
 
-# FIXME: see FIXME in predict.StackedLearner I don't know how to make it better.
-#'
-#' @title Returns the predictions for each base learner.
-#'
-#' @description Returns the predictions for each base learner.
-#'
-#' @param model [\code{WrappedModel}]\cr Wrapped model, result of train.
-#' @param newdata [\code{data.frame}]\cr
-#'   New observations, for which the predictions using the specified base learners should be returned.
-#'   Default is \code{NULL} and extracts the base learner predictions that were made during the training.
-#' @details None.
-#'
-#' @export
-
-getStackedBaseLearnerPredictions = function(model, newdata = NULL){
-  stack.id = model$learner$id
-  # checking
-  if (is.null(newdata)) {
-    pred = model$learner.model$pred.train
-  } else {
-    # get base learner and predict type
-    method = model$learner.model$method
-    if (method == "hill.climb") {
-      # only apply prediction to models which are relevant for hill.climb
-      used.bls = names(which(model$learner.model$freq > 0))
-      bms = model$learner.model$base.models[used.bls]
-    } else {
-      bms = model$learner.model$base.models
-    }
-    pred = vector("list", length(bms))
-    # Prediction
-    # models from RDS file
-    if (model$learner$save.on.disc) {
-      for (i in seq_along(bms)) { # FIXME: do in parallel
-        m = readRDS(bms[[i]])
-        pred[[i]] = predict(m, newdata = newdata)
-      }
-      bls.names = sapply(bms, function(x) convertModelNameToBlsName(x, stack.id))
-    } else {
-    # models from object
-      for (i in seq_along(bms)) {
-        pred[[i]] = predict(bms[[i]], newdata = newdata)
-      }
-      bls.names = sapply(bms, function(X) X$learner$id) #names(.learner$base.learners)
-    }
-    names(pred) = bls.names  
-    # FIXME I don
-    #broke.idx.pd = which(unlist(lapply(pred, function(x) checkIfNullOrAnyNA(x))))
-    #if (length(broke.idx.pd) > 0) {
-    #  messagef("Preds '%s' is broken in 'getStackedBaseLearnerPredictions' and will be removed\n", names(bls)[broke.idx])
-    #  pred.data = pred.data[-broke.idx.pd, drop = FALSE]
-    #  pred = pred[-broke.idx.pd, drop = FALSE]
-    #}
-  }
-  pred
-}
-
-#' @export
-trainLearner.StackedLearner = function(.learner, .task, .subset, ...) {
-  .task = subsetTask(.task, subset = .subset)
-  switch(.learner$method,
-    average = averageBaseLearners(.learner, .task),
-    stack.cv = stackCV(.learner, .task),
-    # hill.climb = hillclimbBaseLearners(.learner, .task, ...)
-    hill.climb = do.call(hillclimbBaseLearners, c(list(.learner, .task), .learner$parset))
-  )
-}
-
-
-# TODOs:
+# old TODOs:
 # - document + test + export
 # - benchmark stuff on openml
 # - allow base.learners to be character of learners (not only list of learners)
@@ -246,12 +177,3 @@ trainLearner.StackedLearner = function(.learner, .task, .subset, ...) {
 # - DONE: super learner can also return predicted probabilites
 # - DONE: allow regression as well
 
-# getWeights
-
-
-# phr
-# TODOS
-# - presently the first predicions feature is removed for multiclass and prob 
-#   cases. this is done due multicoll reasons (especiallly glm methods which are 
-#   famous for stacking). allow that this first prediction is not removed. 
-#   learnsers like rF can hadle such cases. 
