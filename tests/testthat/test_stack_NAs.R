@@ -26,7 +26,7 @@ test_that("Error handling if learner crashs (classif)", {
         messagef("> %s, %s, %s", getTaskId(tsk), spt, bpt)
         configureMlr(on.learner.error = "quiet", on.learner.warning = "quiet")
         bls = lapply(bls, setPredictType, bpt)
-        sta = makeStackedLearner(id = "stack", bls, predict.type = spt, method = "average")
+        sta = makeStackedLearner(id = "stack", base.learners = bls, predict.type = spt, method = "average")
         #debugonce(trainLearner.StackedLearner)
         #debugonce(averageBaseLearners)
         #m = train(sta, tsk)
@@ -48,7 +48,7 @@ test_that("Error handling if learner crashs (classif)", {
       configureMlr(on.learner.error = "quiet", on.learner.warning = "quiet")
       bls = lapply(bls, setPredictType, bpt)
       slr = makeLearner("classif.kknn")
-      stc = makeStackedLearner(id = "stack", bls, slr, predict.type = spt, method = "stack.cv")
+      stc = makeStackedLearner(id = "stack", base.learners = bls, super.learner = slr, predict.type = spt, method = "stack.cv")
       #debugonce(trainLearner.StackedLearner)
       #debugonce(stackCV)
       #m = train(stc, tsk)
@@ -72,7 +72,7 @@ test_that("Error handling if learner crashs (classif)", {
         configureMlr(on.learner.error = "quiet", on.learner.warning = "quiet")
         messagef("> %s, %s, %s", getTaskId(tsk), spt, bt)
         bls = lapply(bls, setPredictType, "prob")
-        stc = makeStackedLearner(id = "stack", bls, predict.type = spt, method = "hill.climb",
+        stc = makeStackedLearner(id = "stack", base.learners = bls, predict.type = spt, method = "hill.climb",
           parset = list(bagtime = bt))
         r = resample(stc, tsk, cv2, model = TRUE)
         expect_equal(length(r$models[[1]]$learner.model$base.models), 2) # check if only 2 models got returned

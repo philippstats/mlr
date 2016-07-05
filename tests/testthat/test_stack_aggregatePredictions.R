@@ -13,11 +13,11 @@ tsk = subsetTask(pid.task, 1:150)
 pts = c("prob", "response")
 tasks = list(binaryclass.task, multiclass.task)
 
-# tsk = subsetTask(iris.task, c(90:150, 1:89)); pt = "prob"; spt = "prob"
+# tsk = subsetTask(iris.task, c(90:150, 1:89)); pt = "prob"; sm.pt = "prob"
 for (tsk in tasks) {
   for (pt in pts) {
-    for (spt in pts) {
-      #messagef("This is %s, %s, %s \n", tsk$task.desc$id, pt, spt)
+    for (sm.pt in pts) {
+      #messagef("This is %s, %s, %s \n", tsk$task.desc$id, pt, sm.pt)
       lrn0 = makeLearner("classif.rpart", predict.type = pt)
       lrn1 = makeLearner("classif.kknn", predict.type = pt)
       lrn2 = makeLearner("classif.kknn", k = 10, predict.type = pt)
@@ -30,9 +30,9 @@ for (tsk in tasks) {
       pr2 = predict(tr2, tsk)
       
       pred.list = list(pr0, pr1, pr2)
-      like_pr0 = aggregatePredictions(pred.list[1], spt = spt)
+      like_pr0 = aggregatePredictions(pred.list[1], sm.pt = sm.pt, pL = FALSE)
       expect_true(identical(pr0, like_pr0))
-      p = aggregatePredictions(pred.list, spt = spt)
+      p = aggregatePredictions(pred.list, sm.pt = sm.pt, pL = FALSE)
       p #%>% print
       perf = performance(p) #%>% print
       expect_that(perf < 1/2, is_true())
@@ -56,7 +56,7 @@ for (tsk in tasks) {
   pr2 = predict(tr2, tsk)
   
   pred.list = list(pr0, pr1, pr2)
-  p = aggregatePredictions(pred.list)
+  p = aggregatePredictions(pred.list, sm.pt = NULL, pL = FALSE)
   p #%>% print
   perf = performance(p) #%>% print
   expect_that(perf > 0.1, is_true())

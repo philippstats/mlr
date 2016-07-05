@@ -10,7 +10,8 @@ checkStack = function(task, method, base, super, bms.pt, sm.pt, use.feat) {
   }
   if (method == "hill.climb" && bms.pt == "response" && inherits(task, "ClassifTask")) return()
 
-  stk = makeStackedLearner(id = "stack", base, super, method = method, use.feat = use.feat, predict.type = sm.pt, save.preds = T)
+  stk = makeStackedLearner(id = "stack", base.learner = base, super.learner = super, 
+    method = method, use.feat = use.feat, predict.type = sm.pt, save.preds = T)
   #debugonce(trainLearner.StackedLearner)
   tr = train(stk, task)
   pr = predict(tr, task)
