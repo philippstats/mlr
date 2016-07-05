@@ -109,10 +109,7 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
     assertClass(parset, "list")
     method = "hill.climb"
   }
-  if (org.method == "stack.cv" & method == "hill.climb") {
-    stopf("Ensemble Selection cannot be applied on top of method 'stack.cv'.")
-  }
-  #
+  # setup
   type = getTaskType(task) 
   tn = getTaskTargetNames(task)
   bls.length = length(obj$models[[1]]$learner.model$base.models)
@@ -272,6 +269,4 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
 # - allow tuneParam so that superlearner can be tuned. Should be easy.
 # - run in parallel (but maybe a outer parallelization is more usefull).
 # - add average method
-# 
-# 
-# 
+
