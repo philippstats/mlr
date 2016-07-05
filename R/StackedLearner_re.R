@@ -16,7 +16,7 @@
 #' \item{3.}{Fit new super learner or apply new ensemble selection setting using level 1 train data from (2).}
 #' \item{4.}{Apply model from (3) on level 1 test data from (1) to obtain final prediction.}
 #' }
-#' Following parameters need to be set fir the single methods. For
+#' Following parameters need to be set for the single methods. For
 #' \describe{
 #' \item{method  = "stack.cv"}{\code{super.learner} and \code{use.feat} need to be set.}
 #' \item{method = "hill.climb"}{\code{parset} need to be set.} 
@@ -36,7 +36,7 @@
 #'   "RecombinedResampleResult" differ from classical "ResampleResult" in that way, that it 
 #'   contains parameters from StackedLearner (i.e. super.learner, use.feat, parset), 
 #'   but has no error handling (err.msgs = NULL) and no extract functionality (extract = NULL). 
-#'   The returned values od 'pred' as well as 'models' differ as well.
+#'   The returned values of 'pred' as well as 'models' differ as well.
 #' @examples 
 #' tsk = pid.task
 #' # Base learners need unique names (id)
