@@ -46,11 +46,10 @@ hillclimbBaseLearners = function(learner, task, replace = TRUE, init = 1, bagpro
   results = parallelMap(doTrainResample, bls, more.args = list(task, rin, 
       measures = metric, show.info, id, save.on.disc), 
       impute.error = function(x) x, level = "mlr.stacking")
-  
   base.models = lapply(results, function(x) x[["base.models"]])
   resres = lapply(results, function(x) x[["resres"]])
   pred.list = lapply(resres, function(x) x[["pred"]])
-  bls.performance = sapply(resres, function(x) x$aggr) 
+  bls.performance = vapply(resres, function(x) x$aggr, numeric(1)) #sapply(resres, function(x) x$aggr) 
 
   names(base.models) = bls.names
   names(resres) = bls.names
