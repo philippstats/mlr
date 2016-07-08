@@ -100,10 +100,11 @@ trainLearner.BoostedStackingLearner = function(.learner, .task, .subset, ...) {
   niter = .learner$par.vals$niter
   tolerance = .learner$tolerance
   bms.pt = unique(extractSubList(.learner$model.multiplexer$base.learner, "predict.type"))
+  if (length(bms.pt) > 1) stopf("Different predict.types for Base Learners is not supported.")
   new.task = subsetTask(.task, subset = .subset)
   base.models = preds = vector("list", length = niter)
   
-  score = rep(ifelse(.learner$measures$minimize, Inf, -Inf), niter + 1)
+  score = rep(ifelse(.learner$measures$minimize, Inf, -Inf), 1 + niter)
   names(score) = c("init.score", paste("not.set", 1:niter, sep = "."))
 
   for (i in seq_len(niter)) {
@@ -128,10 +129,10 @@ trainLearner.BoostedStackingLearner = function(.learner, .task, .subset, ...) {
     # create learner, model, prediction
     best.lrn = makeXBestLearnersFromMMTuneResult(tune.result = res,
       model.multiplexer = .learner$model.multiplexer, mm.ps = .learner$mm.ps,
-      x.best = 1, measure = .learner$measures) # TODO x.best > 1
-    messagef("Best Learner: %s", best.lrn[[1]]$id)
-    base.models[[i]] = train(best.lrn[[1]], new.task)
-    preds[[i]] = resample(best.lrn[[1]], new.task, resampling = .learner$resampling, 
+      x.best = 1, measure = .learner$measures)[[1]] # TODO x.best > 1
+    messagef("Best Learner: %s", best.lrn$id)
+    base.models[[i]] = train(best.lrn, new.task)
+    preds[[i]] = resample(best.lrn, new.task, resampling = .learner$resampling, 
       measures = .learner$measures, show.info = FALSE)
     # create new task
     if (bms.pt == "prob") {
