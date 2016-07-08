@@ -30,7 +30,8 @@ Object of classes "RecombinedResampleResult" and "ResampleResult".
   "RecombinedResampleResult" differ from classical "ResampleResult" in that way, that it 
   contains parameters from StackedLearner (i.e. super.learner, use.feat, parset), 
   but has no error handling (err.msgs = NULL) and no extract functionality (extract = NULL). 
-  The returned values of 'pred' as well as 'models' differ as well.
+  The returned values of 'pred' as well as 'models' differ as well. 
+  Moreover the performance of the base models evaluated on the test set is accessable in 'test.bls.perfs'.
 }
 \description{
 Instead of rerun \code{resample} with a new setting just use 
