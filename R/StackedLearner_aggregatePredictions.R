@@ -5,9 +5,10 @@
 #' 
 #' @param pred.list [list of \code{Predictions}]\cr
 #' @param sm.pt Final predict type, "prob" or "response"
+#' @param pL FALSE if Predictions with truth, TRUE for truth=NA
 #' @export
 
-aggregatePredictions = function(pred.list, sm.pt = NULL, pL = TRUE) {
+aggregatePredictions = function(pred.list, sm.pt = NULL, pL = FALSE) {
   # return pred if list only contains one pred
   if (length(pred.list) == 1) {
     #messagef("'pred.list' has only one prediction and returns that one unlisted. Argument 'sm.pt' will not be applied.")

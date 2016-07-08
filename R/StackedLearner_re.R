@@ -36,7 +36,8 @@
 #'   "RecombinedResampleResult" differ from classical "ResampleResult" in that way, that it 
 #'   contains parameters from StackedLearner (i.e. super.learner, use.feat, parset), 
 #'   but has no error handling (err.msgs = NULL) and no extract functionality (extract = NULL). 
-#'   The returned values of 'pred' as well as 'models' differ as well.
+#'   The returned values of 'pred' as well as 'models' differ as well. 
+#'   Moreover the performance of the base models evaluated on the test set is accessable in 'test.bls.perfs'.
 #' @examples 
 #' tsk = pid.task
 #' # Base learners need unique names (id)
@@ -125,10 +126,12 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
   # get base models (for save.on.disc=FALSE: WrappedModels; for TRUE: names directing to RData on disc.)
   base.models_f = lapply(seq_len(folds), function(x) obj$models[[x]]$learner.model$base.models)
   # get train and test idxs
-  train.idxs = lapply(seq_len(folds), function(x) obj$models[[x]]$subset)
-  test.idxs = lapply(seq_len(folds), function(x) setdiff(seq_len(task.size), train.idxs[[x]]))
+  train.idxs_f = lapply(seq_len(folds), function(x) obj$models[[x]]$subset)
+  test.idxs_f = lapply(seq_len(folds), function(x) setdiff(seq_len(task.size), train.idxs_f[[x]]))
   #
   test.level1.task_f = vector("list", length = folds)
+  test.bls.perfs_f = vector("list", length = folds)
+
   #
   ### 
   ### 
@@ -140,8 +143,9 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
     ### Get level 1 TEST data, i.e. apply bls models from training on testing data
     # saved in "test.level1.task_f"
     for (f in seq_len(folds)) {
-      test.idx = test.idxs[[f]]
+      test.idx = test.idxs_f[[f]]
       pred.list = createTestPreds(f, base.models_f[[f]], test.idx = test.idx, task, save.on.disc)
+      test.bls.perfs_f[[f]] = ldply(lapply(pred.list, function(x)performance(x, measures)), .id = "bls")
       #preds = lapply(seq_len(length(base.models[[i]])), function(b) predict(base.models[[i]][[b]], subsetTask(task, idxs)))
       pred.data.list = lapply(seq_len(length(pred.list)), function(x) getPredictionDataNonMulticoll(pred.list[[x]]))
       names(pred.data.list) = bls.names
@@ -161,7 +165,7 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
     train.level1.preds_f = lapply(obj$models, function(x) x$learner.model$pred.train)
     train.level1.task_f = vector("list", length = folds)
     for (f in seq_len(folds)) {
-      train.idx = train.idxs[[f]]
+      train.idx = train.idxs_f[[f]]
       pred.data.list = lapply(seq_len(bls.length), function(x) getPredictionDataNonMulticoll(train.level1.preds_f[[f]][[x]])) # TODO naming
       names(pred.data.list) = bls.names 
       if (use.feat) {
@@ -178,8 +182,8 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
     train.supermodel_f = lapply(seq_len(folds), function(f) train(super.learner, task = train.level1.task_f[[f]]))
     train.preds_f = lapply(seq_len(folds), function(f) predict(train.supermodel_f[[f]], task = train.level1.task_f[[f]]))
     ### 4.
-    ### Apply train.supermodel from line above on  level 1 TEST preds from (1).
-    test.preds_f = lapply(seq_len(folds), function(f) predict(train.supermodel_f[[f]], test.level1.task_f[[f]]))
+    ### Apply train.supermodel from line above on level 1 TEST preds from (1).
+    test.preds_f = lapply(seq_len(folds), function(f) predict(train.supermodel_f[[f]], task = test.level1.task_f[[f]]))
     res.model_f = train.supermodel_f
     ### 
     ### 
@@ -202,7 +206,8 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
       ### 2.
       ### get level 1 TEST preds, i.e. apply bls models from training on testing data
       # saved as "test.level1.preds"
-      test.level1.preds = createTestPreds(f, base.models_f[[f]], test.idx = test.idxs[[f]], task, save.on.disc)
+      test.level1.preds = createTestPreds(f, base.models_f[[f]], test.idx = test.idxs_f[[f]], task, save.on.disc)
+      test.bls.perfs_f[[f]] =  ldply(lapply(test.level1.preds, function(x)performance(x, measures)), .id = "bls")
       ### 3.
       ### Run Ensemble Selection on level 1 TRAIN preds (1) with new parameters.
       res.model_f[[f]] = applyEnsembleSelection(pred.list = train.level1.preds_f[[f]],
@@ -224,12 +229,12 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
   ### measures and runtime 
   ###   
   ###   
-  m = lapply(train.preds_f, function(x) performance(x, measures = measures))
-  measure.train = as.data.frame(do.call(rbind, m))
+  m.train = lapply(train.preds_f, function(x) performance(x, measures = measures))
+  measure.train = as.data.frame(do.call(rbind, m.train))
   measure.train = cbind(iter = 1:NROW(measure.train), measure.train)
   
-  m = lapply(test.preds_f, function(x) performance(x, measures = measures))
-  measure.test = as.data.frame(do.call(rbind, m))
+  m.test = lapply(test.preds_f, function(x) performance(x, measures = measures))
+  measure.test = as.data.frame(do.call(rbind, m.test))
   measure.test = cbind(iter = 1:NROW(measure.test), measure.test)
   aggr = colMeans(measure.test[, -1, drop = FALSE])
   names(aggr) = paste0(names(aggr), ".test.mean")
@@ -243,13 +248,14 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
     measure.train = measure.train, 
     measure.test = measure.test, 
     aggr = aggr, 
-    #train.preds = train.preds_f, 
+    train.preds = train.preds_f, # rarely needed, only for getStackedBLPreds if .newdata=NULL
     pred = test.preds_f, # not 1 ResampleRediction object as in resample but a list of single ResamplePredictions.
-    models = res.model_f,
+    models = res.model_f, # Ensemble model consist of 'freq', 'freq.list', 'weights'
     err.msgs = NULL, # no error handling so far.
     extract = NULL, # not implemented. 
     runtime = runtime, 
     # extra returns
+    test.bls.perfs = test.bls.perfs_f, # Performance of single bls for easier interpretability if ensemble was successful.
     super.learner = super.learner, 
     use.feat = use.feat,
     parset = parset) 

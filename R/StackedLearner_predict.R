@@ -29,12 +29,12 @@ predictLearner.StackedLearner = function(.learner, .model, .newdata) { # FIXME a
 
   # apply average 
   if (method == "average") {
-    final.pred = aggregatePredictions(pred.list, sm.pt = sm.pt)
+    final.pred = aggregatePredictions(pred.list, sm.pt = sm.pt, pL = FALSE)
   # apply hill.climb
   } else if (method == "hill.climb") {
     freq = .model$learner.model$freq
     pred.list = expandPredList(pred.list, freq = freq)
-    final.pred = aggregatePredictions(pred.list, sm.pt = sm.pt)
+    final.pred = aggregatePredictions(pred.list, sm.pt = sm.pt, pL = FALSE)
   # apply stack.cv
   } else if (method == "stack.cv") {
     pred.data = lapply(pred.list, function(x) getPredictionDataNonMulticoll(x))

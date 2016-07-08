@@ -4,12 +4,14 @@
 \alias{aggregatePredictions}
 \title{Aggregate predictions}
 \usage{
-aggregatePredictions(pred.list, sm.pt = NULL, pL = TRUE)
+aggregatePredictions(pred.list, sm.pt = NULL, pL = FALSE)
 }
 \arguments{
 \item{pred.list}{[list of \code{Predictions}]\cr}
 
 \item{sm.pt}{Final predict type, "prob" or "response"}
+
+\item{pL}{FALSE if Predictions with truth, TRUE for truth=NA}
 }
 \description{
 Aggregate predicitons results by averaging (for \code{regr}, and  \code{classif} with prob) or mode ( \code{classif} with response). 
