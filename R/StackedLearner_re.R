@@ -230,12 +230,12 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
   ###   
   ###   
   m.train = lapply(train.preds_f, function(x) performance(x, measures = measures))
-  measure.train = as.data.frame(do.call(rbind, m.train))
-  measure.train = cbind(iter = 1:NROW(measure.train), measure.train)
+  measures.train = as.data.frame(do.call(rbind, m.train))
+  measures.train = cbind(iter = 1:NROW(measures.train), measures.train)
   
   m.test = lapply(test.preds_f, function(x) performance(x, measures = measures))
-  measure.test = as.data.frame(do.call(rbind, m.test))
-  measure.test = cbind(iter = 1:NROW(measure.test), measure.test)
+  measures.test = as.data.frame(do.call(rbind, m.test))
+  measures.test = cbind(iter = 1:NROW(measures.test), measures.test)
   aggr = colMeans(measure.test[, -1, drop = FALSE])
   names(aggr) = paste0(names(aggr), ".test.mean")
   
@@ -245,12 +245,12 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
   ### return
   X = list(learner.id = id, 
     task.id = task$task.desc$id, 
-    measure.train = measure.train, 
-    measure.test = measure.test, 
+    measures.train = measures.train, 
+    measures.test = measures.test, 
     aggr = aggr, 
     train.preds = train.preds_f, # rarely needed, only for getStackedBLPreds if .newdata=NULL
     pred = test.preds_f, # not 1 ResampleRediction object as in resample but a list of single ResamplePredictions.
-    models = res.model_f, # Ensemble model consist of 'freq', 'freq.list', 'weights'
+    models = res.model_f, # Ensemble model consist of 'freq', 'freq.list', 'weights'; Super Learner of super model
     err.msgs = NULL, # no error handling so far.
     extract = NULL, # not implemented. 
     runtime = runtime, 
