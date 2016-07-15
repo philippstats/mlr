@@ -20,9 +20,7 @@
 #' \describe{
 #' \item{method  = "stack.cv"}{\code{super.learner} and \code{use.feat} need to be set.}
 #' \item{method = "hill.climb"}{\code{parset} need to be set.} 
-#' }
-#' \describe{
-#' \item{method = "average"}{is currently not implemented.} 
+#' \item{method = "average"}{no arguemnt of those abvoe need to be set.} 
 #' }
 #' @param id [\code{character(1)}]\cr Unique ID for object.
 #' @param obj [\code{ResampleResult}]\cr \code{ResampleResult} from \code{StackedLearner}.
@@ -106,10 +104,16 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
   if (!is.null(super.learner)) {
     assertClass(super.learner, "Learner")
     method = "stack.cv"
+    if (!is.null(parset)) stopf("Method 'stack.cv' does not need argument 'parset'.")
   } else {
-    assertClass(parset, "list")
-    method = "hill.climb"
-  }
+    if (!is.null(parset)) {
+      assertClass(parset, "list")
+      method = "hill.climb"
+    } else {
+      method = "average"
+    }
+  } 
+
   # setup
   type = getTaskType(task) 
   tn = getTaskTargetNames(task)
@@ -190,15 +194,15 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
     ### hill.climb ###
     ###
     ###
-  } else if (method == "hill.climb") { 
+  } else if (method %in% c("average", "hill.climb")) { 
     # use settings from new parset
-    parset = createNewParset(org.parset = obj$models[[1]]$learner$parset, new.parset = parset)
+    if (method == "hill.climb") parset = createNewParset(org.parset = obj$models[[1]]$learner$parset, new.parset = parset)
     ### 1.
     ### get level 1 TRAIN preds and perfs
     # saved as "train.level1.preds"
-    # saved as "train.level1.perfs"
+    # saved as "train.level1.perfs" (only for hill.climb)
     train.level1.preds_f = lapply(seq_len(folds), function(x) obj$models[[x]]$learner.model$pred.train)
-    train.level1.perfs_f = lapply(seq_len(folds), function(x) obj$models[[x]]$learner.model$bls.performance)
+    if (method == "hill.climb") train.level1.perfs_f = lapply(seq_len(folds), function(x) obj$models[[x]]$learner.model$bls.performance)
     # 
     train.preds_f = test.preds_f = vector("list", length = folds)
     res.model_f = vector("list", length = folds)
@@ -210,20 +214,24 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
       test.bls.perfs_f[[f]] =  ldply(lapply(test.level1.preds, function(x)performance(x, measures)), .id = "bls")
       ### 3.
       ### Run Ensemble Selection on level 1 TRAIN preds (1) with new parameters.
-      res.model_f[[f]] = applyEnsembleSelection(pred.list = train.level1.preds_f[[f]],
-        bls.performance = train.level1.perfs_f[[f]], parset = parset)
-      freq = res.model_f[[f]]$freq
+      if (method == "hill.climb") {
+        res.model_f[[f]] = applyEnsembleSelection(pred.list = train.level1.preds_f[[f]],
+          bls.performance = train.level1.perfs_f[[f]], parset = parset)
+        freq = res.model_f[[f]]$freq
+      } else {
+        res.model_f[[f]] = "Method 'average' does not have a model."
+      }
       # Create train prediction (needes for train measure)
       current.pred.list = train.level1.preds_f[[f]] # names(current.pred.list) = bls.names
-      current.pred.list = expandPredList(current.pred.list, freq = freq)
+      if (method == "hill.climb") current.pred.list = expandPredList(current.pred.list, freq = freq)
       train.preds_f[[f]] = aggregatePredictions(pred.list = current.pred.list, pL = FALSE)
       
       ### 4.
       ### Apply Model (i.e. freq) on level 1 TEST preds from (3)
-      current.pred.list = expandPredList(test.level1.preds, freq = freq)
+      if (method == "hill.climb") current.pred.list = expandPredList(test.level1.preds, freq = freq)
       test.preds_f[[f]] = aggregatePredictions(pred.list = current.pred.list, pL = FALSE)
     }
-  }
+  } 
   ###
   ###
   ### measures and runtime 
@@ -236,7 +244,7 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
   m.test = lapply(test.preds_f, function(x) performance(x, measures = measures))
   measures.test = as.data.frame(do.call(rbind, m.test))
   measures.test = cbind(iter = 1:NROW(measures.test), measures.test)
-  aggr = colMeans(measure.test[, -1, drop = FALSE])
+  aggr = colMeans(measures.test[, -1, drop = FALSE])
   names(aggr) = paste0(names(aggr), ".test.mean")
   
   time2 = Sys.time()

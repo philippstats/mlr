@@ -54,9 +54,7 @@ Following parameters need to be set for the single methods. For
 \describe{
 \item{method  = "stack.cv"}{\code{super.learner} and \code{use.feat} need to be set.}
 \item{method = "hill.climb"}{\code{parset} need to be set.} 
-}
-\describe{
-\item{method = "average"}{is currently not implemented.} 
+\item{method = "average"}{no arguemnt of those abvoe need to be set.} 
 }
 }
 \examples{
