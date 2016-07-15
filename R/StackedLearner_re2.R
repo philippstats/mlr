@@ -84,7 +84,7 @@ print.RecombinedResampleResult = function(x, ...) {
   cat("Recombined Resample Result\n")
   catf("Task: %s", x$task.id)
   catf("Learner: %s", x$learner.id)
-  m = x$measure.test[, -1L, drop = FALSE]
+  m = x$measures.test[, -1L, drop = FALSE]
   Map(function(name, x, aggr) {
     catf("%s.aggr: %.2f", name, aggr)
     catf("%s.mean: %.2f", name, mean(x, na.rm = TRUE))
