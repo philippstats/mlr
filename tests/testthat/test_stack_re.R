@@ -57,6 +57,9 @@ test_that("resampleStackedLearnerAgain", {
     # check if all models contain results (non-NAs)
     expect_equal(anyNA(lapply(seq_along(resES), function(x) resES[[x]]$aggr)), FALSE)
     # FIXME: more tests
+    context(paste("AV on", tsk$task.desc$id))
+    av1 = resampleStackedLearnerAgain(obj = resES, task = tsk, measures = mmce)
+
     
     
     context(paste("SL on", tsk$task.desc$id))

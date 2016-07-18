@@ -159,7 +159,7 @@ applyEnsembleSelection = function(pred.list = pred.list, bls.performance = bls.p
     inds.selected = inds.init
     
     # inner loop (adds as many models in current bagging iteration until tolerance or maxiter is reached)
-    for (inneriter in seq_along(maxiter)) {
+    for (inneriter in seq_len(maxiter)) {
       temp.score = rep(ifelse(metric$minimize, Inf, -Inf), m)
       # uniquely add every prediction form the bag to the current prediction and calc. performance
       for (i in bagmodel) {
