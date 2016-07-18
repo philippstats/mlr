@@ -344,6 +344,47 @@ multiclass.auc = makeMeasure(id = "multiclass.auc", minimize = FALSE, best = 1, 
   }
 )
 
+
+#' @export logloss
+#' @rdname measures
+#' @format none
+logloss = makeMeasure(id = "logloss", minimize = TRUE, best = 0, worst = Inf,
+  properties = c("classif", "classif.multi", "req.truth", "req.prob"),
+  name = "Logarithmic loss",
+  note = "Defined as: -mean(log(p_i)), where p_i is the predicted probability of the true class of observation i. Inspired by https://www.kaggle.com/wiki/MultiClassLogLoss.",
+  fun = function(task, model, pred, feats, extra.args) {
+    measureLogloss(getPredictionProbabilities(pred, cl = pred$task.desc$class.levels), pred$data$truth)
+  }
+)
+
+#' @export measureLogloss
+#' @rdname measures
+#' @format none
+measureLogloss = function(probabilities, truth){
+  eps = 1e-15
+  #let's confine the predicted probabilities to [eps,1-eps], so logLoss doesn't reach infinity under any circumstance
+  probabilities[probabilities > 1-eps] = 1-eps
+  probabilities[probabilities < eps] = eps
+  truth = match(as.character(truth), colnames(probabilities))
+  p = getRowEls(probabilities, truth)
+  -1*mean(log(p))
+}
+
+# get one el from each row of a matrix, given indices or col names
+getRowEls = function(mat, inds) {
+  if (is.character(inds))
+    inds = match(inds, colnames(mat))
+  inds = cbind(seq_row(mat), inds)
+  mat[inds]
+}
+
+# get one el from each col of a matrix, given indices or row names
+getColEls = function(mat, inds) {
+  getRowEls(t(mat), inds)
+}
+
+
+
 ###############################################################################
 ### classif binary ###
 ###############################################################################
