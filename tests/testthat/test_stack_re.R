@@ -53,9 +53,9 @@ test_that("resampleStackedLearnerAgain", {
     expect_is(es1$models, "list")
     expect_equal(length(es1$models), rdesc$iters)
     expect_is(es1$models[[1]], "WrappedModel")
-    resES = list(ee1, ee2, ee3, ee4, ee5, es1, es2, es3, es4)
+    res = list(ee1, ee2, ee3, ee4, ee5, es1, es2, es3, es4)
     # check if all models contain results (non-NAs)
-    expect_equal(anyNA(lapply(seq_along(resES), function(x) resES[[x]]$aggr)), FALSE)
+    expect_equal(anyNA(lapply(seq_along(res), function(x) res[[x]]$aggr)), FALSE)
     # FIXME: more tests
     context(paste("AV on", tsk$task.desc$id))
     av1 = resampleStackedLearnerAgain(obj = resES, task = tsk, measures = mmce)

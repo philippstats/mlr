@@ -27,32 +27,32 @@ getPreciseTaskType = function(x) {
   type
 }
 
-#' Create predictions for testing set (with base model or saved one in RDS).
+#' Create predictions for training or testing set (depends on idx) (with base model or saved one in RDS).
 #' 
-#' @param i Current fold number.
+#' @param foldi Current fold number.
 #' @param bls base.learner to use.
-#' @param test.idx idx for subsetting.
+#' @param idx idx for subsetting.
 #' @param task task.
 #' @param save.on.disc wether model are present in \code{bls} or must be loaded using readRDS.
 
-createTestPreds = function(i, bls, test.idx, task, save.on.disc) {
+createPreds = function(foldi, bls, idx, task, save.on.disc) {
     bls.len = length(bls)
     if (save.on.disc) {
     # This only works if outer resampling is Holdout (save model does not 
     # get infos about the fold figure, therefore only one fold is allowed): 
-    if (i != 1) {
+    if (foldi != 1) {
       stopf("Using 'save.on.disc = TRUE' and outer resampling strategies others 
         than Holdout is not supported. Switch save.on.disc to FALSE or use Holdout.")
     }
     all.preds = vector("list", length = bls.len)
     for (b in seq_len(bls.len)) { # do it seqentially
       bm = readRDS(bls[[b]]) # i is always 1
-      all.preds[[b]] = predict(bm, subsetTask(task, test.idx))
+      all.preds[[b]] = predict(bm, subsetTask(task, idx))
       names(all.preds)[b] = bm$learner$id
       rm(bm)
     }
   } else { # save.on.disc = FALSE
-    all.preds = lapply(seq_len(bls.len), function(b) predict(bls[[b]], subsetTask(task, test.idx)))
+    all.preds = lapply(seq_len(bls.len), function(b) predict(bls[[b]], subsetTask(task, idx)))
     all.preds.names = unlist(lapply(seq_len(bls.len), function(b) bls[[b]]$learner$id))
     names(all.preds) = all.preds.names
   }

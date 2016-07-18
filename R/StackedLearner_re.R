@@ -148,7 +148,7 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
     # saved in "test.level1.task_f"
     for (f in seq_len(folds)) {
       test.idx = test.idxs_f[[f]]
-      pred.list = createTestPreds(f, base.models_f[[f]], test.idx = test.idx, task, save.on.disc)
+      pred.list = createPreds(foldi = f, bls = base.models_f[[f]], idx = test.idx, task, save.on.disc)
       test.bls.perfs_f[[f]] = ldply(lapply(pred.list, function(x)performance(x, measures)), .id = "bls")
       #preds = lapply(seq_len(length(base.models[[i]])), function(b) predict(base.models[[i]][[b]], subsetTask(task, idxs)))
       pred.data.list = lapply(seq_len(length(pred.list)), function(x) getPredictionDataNonMulticoll(pred.list[[x]]))
@@ -191,7 +191,7 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
     res.model_f = train.supermodel_f
     ### 
     ### 
-    ### hill.climb ###
+    ### hill.climb and average ###
     ###
     ###
   } else if (method %in% c("average", "hill.climb")) { 
@@ -201,16 +201,24 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
     ### get level 1 TRAIN preds and perfs
     # saved as "train.level1.preds"
     # saved as "train.level1.perfs" (only for hill.climb)
-    train.level1.preds_f = lapply(seq_len(folds), function(x) obj$models[[x]]$learner.model$pred.train)
-    if (method == "hill.climb") train.level1.perfs_f = lapply(seq_len(folds), function(x) obj$models[[x]]$learner.model$bls.performance)
+    if (method == "hill.climb") {
+      train.level1.preds_f = lapply(seq_len(folds), function(x) obj$models[[x]]$learner.model$pred.train) # cross-validated
+      train.level1.perfs_f = lapply(seq_len(folds), function(x) obj$models[[x]]$learner.model$bls.performance)
+    } else {
+      train.level1.preds_f = vector("list", folds) # see for-loop
+    }
     # 
     train.preds_f = test.preds_f = vector("list", length = folds)
     res.model_f = vector("list", length = folds)
     for (f in seq_len(folds)) {
+      ###  1. for average
+      if (method == "average") { 
+        train.level1.preds_f[[f]] = createPreds(foldi = f, bls = base.models_f[[f]], idx = train.idxs_f[[f]], task, save.on.disc) #train-predict
+      }
       ### 2.
       ### get level 1 TEST preds, i.e. apply bls models from training on testing data
       # saved as "test.level1.preds"
-      test.level1.preds = createTestPreds(f, base.models_f[[f]], test.idx = test.idxs_f[[f]], task, save.on.disc)
+      test.level1.preds = createPreds(foldi = f, bls = base.models_f[[f]], idx = test.idxs_f[[f]], task, save.on.disc)
       test.bls.perfs_f[[f]] =  ldply(lapply(test.level1.preds, function(x)performance(x, measures)), .id = "bls")
       ### 3.
       ### Run Ensemble Selection on level 1 TRAIN preds (1) with new parameters.
@@ -228,8 +236,8 @@ resampleStackedLearnerAgain = function(id = NULL, obj, task, measures = NULL, su
       
       ### 4.
       ### Apply Model (i.e. freq) on level 1 TEST preds from (3)
-      if (method == "hill.climb") current.pred.list = expandPredList(test.level1.preds, freq = freq)
-      test.preds_f[[f]] = aggregatePredictions(pred.list = current.pred.list, pL = FALSE)
+      if (method == "hill.climb") test.level1.preds = expandPredList(test.level1.preds, freq = freq)
+      test.preds_f[[f]] = aggregatePredictions(pred.list = test.level1.preds, pL = FALSE)
     }
   } 
   ###
